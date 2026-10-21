@@ -1,0 +1,3 @@
+gh repo clone starasen1-coder/super-duper-octo-happiness
+cd super-duper-octo-happiness
+mkdir .vscode
