@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "ms-vscode.cpptools",
+    "L-I-V.mql-tools",
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    "anthropic.claude-code"
+  ]
+}
