@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+anthropic
+pydantic
+python-dotenv
+pandas
+# Windows only: связь Python с терминалом MT5
+MetaTrader5; sys_platform == "win32"
