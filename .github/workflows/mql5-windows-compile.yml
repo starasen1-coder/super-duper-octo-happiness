@@ -28,7 +28,7 @@ jobs:
             "$env:ProgramFiles\MetaTrader 5\MetaEditor64.exe",
             "$env:ProgramFiles\AMarkets MetaTrader 5\MetaEditor64.exe",
             "$env:ProgramFiles\MetaTrader 5\metaeditor64.exe",
-            "$env:ProgramFiles(x86)\MetaTrader 5\MetaEditor64.exe"
+            "${env:ProgramFiles(x86)}\MetaTrader 5\MetaEditor64.exe"
           )
           $editor = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $editor) {
