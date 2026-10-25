@@ -3,17 +3,12 @@
 //| Corrected execution, closed-bar signals, per-tick trailing        |
 //+------------------------------------------------------------------+
 #property strict
-#property version   "1.20"
-#property description "Risk-controlled trend/pullback EA. Not a full SMC implementation."
+#property version   "1.10"
+#property description "Corrected trend/pullback EA. Not a full SMC implementation."
 
 #include <Trade/Trade.mqh>
 
-input double InpLot                  = 0.10; // Used only when risk-percent sizing is disabled
-input bool   InpUseRiskPercent        = true;
-input double InpRiskPercent           = 0.50;
-input double InpMaxDailyLossPercent   = 2.00;
-input int    InpMaxConsecutiveLosses  = 3;
-input int    InpCooldownBarsAfterLoss = 3;
+input double InpLot                  = 0.10;
 input int    InpFastMAPeriod          = 50;
 input int    InpSlowMAPeriod          = 200;
 input double InpRiskReward            = 2.0;
@@ -24,8 +19,8 @@ input ulong  InpMagic                  = 123456;
 input int    InpDeviationPoints        = 20;
 
 input bool   InpUseTrailingStop        = true;
-input double InpTrailingStartPips      = 10.0;
-input double InpTrailingDistancePips   = 5.0;
+input double InpTrailingStartPips      = 50.0;
+input double InpTrailingDistancePips   = 25.0;
 
 input bool   InpUseRetraceFilter       = true;
 input bool   InpUseH1LevelFilter       = false;
@@ -38,10 +33,6 @@ int      g_slowMA = INVALID_HANDLE;
 int      g_atr    = INVALID_HANDLE;
 CTrade   g_trade;
 datetime g_lastBarTime = 0;
-datetime g_dayStartTime = 0;
-double   g_dayStartBalance = 0.0;
-int      g_consecutiveLosses = 0;
-int      g_cooldownBarsRemaining = 0;
 
 //+------------------------------------------------------------------+
 double PipSize()
@@ -94,11 +85,7 @@ double NormalizeVolume(double requested)
    if(step <= 0.0 || vmin <= 0.0 || vmax < vmin)
       return 0.0;
 
-   // Never round a risk-sized request UP to the broker minimum: that would
-   // silently exceed the configured risk budget.
-   if(requested < vmin - 1e-8)
-      return 0.0;
-   double volume = MathMin(vmax, requested);
+   double volume = MathMax(vmin, MathMin(vmax, requested));
    volume = MathFloor(volume / step + 1e-8) * step;
 
    int digits = 0;
@@ -144,16 +131,8 @@ bool BuildStops(const bool isBuy, const double entry, const double atr,
    }
 
    double step = (tickSize > 0.0 ? tickSize : point);
-   if(isBuy)
-   {
-      sl = NormalizeDouble(MathFloor(sl / step + 1e-8) * step, _Digits);
-      tp = NormalizeDouble(MathCeil(tp / step - 1e-8) * step, _Digits);
-   }
-   else
-   {
-      sl = NormalizeDouble(MathCeil(sl / step - 1e-8) * step, _Digits);
-      tp = NormalizeDouble(MathFloor(tp / step + 1e-8) * step, _Digits);
-   }
+   sl = NormalizeDouble(MathRound(sl / step) * step, _Digits);
+   tp = NormalizeDouble(MathRound(tp / step) * step, _Digits);
 
    if(isBuy && (sl >= entry || tp <= entry))
       return false;
@@ -167,38 +146,26 @@ bool BuildStops(const bool isBuy, const double entry, const double atr,
 //+------------------------------------------------------------------+
 int GetSignal()
 {
-   double fast1, fast2, slow1, atr;
-   if(!ReadIndicatorValue(g_fastMA, 1, fast1) ||
-      !ReadIndicatorValue(g_fastMA, 2, fast2) ||
-      !ReadIndicatorValue(g_slowMA, 1, slow1) ||
+   double fast, slow, atr;
+   if(!ReadIndicatorValue(g_fastMA, 1, fast) ||
+      !ReadIndicatorValue(g_slowMA, 1, slow) ||
       !ReadIndicatorValue(g_atr, 1, atr))
       return 0;
 
    const double close1 = iClose(_Symbol, PERIOD_M15, 1);
-   const double open1  = iOpen(_Symbol, PERIOD_M15, 1);
-   const double close2 = iClose(_Symbol, PERIOD_M15, 2);
-   if(close1 <= 0.0 || open1 <= 0.0 || close2 <= 0.0)
+   if(close1 <= 0.0)
       return 0;
 
-   // Require a pullback through the fast EMA followed by a closed candle
-   // reclaiming it in the trend direction. Avoid buying every candle below
-   // the EMA or selling every candle above it.
-   if(fast1 > slow1 && fast1 > fast2)
+   if(fast > slow)
    {
-      if(InpUseRetraceFilter)
-      {
-         if(close2 > fast2 || close1 <= fast1 || close1 <= open1)
-            return 0;
-      }
+      if(InpUseRetraceFilter && close1 >= fast)
+         return 0;
       return 1;
    }
-   if(fast1 < slow1 && fast1 < fast2)
+   if(fast < slow)
    {
-      if(InpUseRetraceFilter)
-      {
-         if(close2 < fast2 || close1 >= fast1 || close1 >= open1)
-            return 0;
-      }
+      if(InpUseRetraceFilter && close1 <= fast)
+         return 0;
       return -1;
    }
    return 0;
@@ -260,107 +227,13 @@ void ManageTrailingStops()
       }
 
       const double step = (tickSize > 0.0 ? tickSize : point);
-      if(isBuy)
-         newSL = NormalizeDouble(MathFloor(newSL / step + 1e-8) * step, _Digits);
-      else
-         newSL = NormalizeDouble(MathCeil(newSL / step - 1e-8) * step, _Digits);
+      newSL = NormalizeDouble(MathRound(newSL / step) * step, _Digits);
       ResetLastError();
       if(!g_trade.PositionModify(ticket, newSL, tp))
          PrintFormat("Trailing modify failed. ticket=%I64u retcode=%u (%s), error=%d",
                      ticket, g_trade.ResultRetcode(),
                      g_trade.ResultRetcodeDescription(), GetLastError());
    }
-}
-//+------------------------------------------------------------------+
-double CalculateVolumeByRisk(const bool isBuy, const double entry, const double sl)
-{
-   if(!InpUseRiskPercent)
-      return NormalizeVolume(InpLot);
-
-   if(InpRiskPercent <= 0.0)
-      return 0.0;
-
-   double projectedProfit = 0.0;
-   const ENUM_ORDER_TYPE orderType = isBuy ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
-   if(!OrderCalcProfit(orderType, _Symbol, 1.0, entry, sl, projectedProfit))
-   {
-      Print("OrderCalcProfit failed for risk sizing. Error=", GetLastError());
-      return 0.0;
-   }
-
-   const double lossPerLot = MathAbs(projectedProfit);
-   if(lossPerLot <= 0.0)
-      return 0.0;
-
-   const double riskMoney = AccountInfoDouble(ACCOUNT_EQUITY) * InpRiskPercent / 100.0;
-   const double rawVolume = riskMoney / lossPerLot;
-   const double minVolume = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
-   if(rawVolume < minVolume)
-   {
-      PrintFormat("Trade skipped: risk-sized volume %.5f is below broker minimum %.5f; risk budget not exceeded.",
-                  rawVolume, minVolume);
-      return 0.0;
-   }
-   return NormalizeVolume(rawVolume);
-}
-//+------------------------------------------------------------------+
-bool DailyGuardAllowed()
-{
-   const datetime now = TimeCurrent();
-   const datetime today = StringToTime(TimeToString(now, TIME_DATE));
-   if(today != g_dayStartTime)
-   {
-      g_dayStartTime = today;
-      g_dayStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
-      g_consecutiveLosses = 0; // Daily lockout resets on the next trading day.
-   }
-
-   if(InpMaxDailyLossPercent > 0.0 && g_dayStartBalance > 0.0)
-   {
-      if(!HistorySelect(g_dayStartTime, now))
-      {
-         Print("Daily guard: HistorySelect failed; entry blocked for safety.");
-         return false;
-      }
-      double dailyNet = 0.0;
-      for(int i = 0; i < HistoryDealsTotal(); ++i)
-      {
-         const ulong deal = HistoryDealGetTicket(i);
-         if(deal == 0)
-            continue;
-         if(HistoryDealGetString(deal, DEAL_SYMBOL) != _Symbol ||
-            (ulong)HistoryDealGetInteger(deal, DEAL_MAGIC) != InpMagic)
-            continue;
-         const long entryType = HistoryDealGetInteger(deal, DEAL_ENTRY);
-         if(entryType != DEAL_ENTRY_OUT && entryType != DEAL_ENTRY_OUT_BY)
-            continue;
-         dailyNet += HistoryDealGetDouble(deal, DEAL_PROFIT)
-                   + HistoryDealGetDouble(deal, DEAL_SWAP)
-                   + HistoryDealGetDouble(deal, DEAL_COMMISSION);
-      }
-      const double maxLossMoney = g_dayStartBalance * InpMaxDailyLossPercent / 100.0;
-      if(dailyNet <= -maxLossMoney)
-      {
-         PrintFormat("Daily loss limit reached: %.2f <= -%.2f. New entries blocked.",
-                     dailyNet, maxLossMoney);
-         return false;
-      }
-   }
-
-   if(InpMaxConsecutiveLosses > 0 &&
-      g_consecutiveLosses >= InpMaxConsecutiveLosses)
-   {
-      PrintFormat("Entry blocked: %d consecutive losses reached the limit %d.",
-                  g_consecutiveLosses, InpMaxConsecutiveLosses);
-      return false;
-   }
-   if(g_cooldownBarsRemaining > 0)
-   {
-      PrintFormat("Entry blocked by cooldown: %d M15 bars remain.",
-                  g_cooldownBarsRemaining);
-      return false;
-   }
-   return true;
 }
 //+------------------------------------------------------------------+
 bool OpenTrade(const int signal)
@@ -385,10 +258,10 @@ bool OpenTrade(const int signal)
       return false;
    }
 
-   const double volume = CalculateVolumeByRisk(isBuy, entry, sl);
+   const double volume = NormalizeVolume(InpLot);
    if(volume <= 0.0)
    {
-      Print("Trade skipped: safe volume calculation returned zero.");
+      Print("Invalid volume for symbol: ", InpLot);
       return false;
    }
 
@@ -421,10 +294,7 @@ int OnInit()
    if(InpLot <= 0.0 || InpFastMAPeriod <= 0 ||
       InpSlowMAPeriod <= InpFastMAPeriod ||
       InpATRPeriod <= 0 || InpATRMultiplierSL <= 0.0 ||
-      InpRiskReward <= 0.0 || InpMaxSpreadPoints < 0 ||
-      (InpUseRiskPercent && (InpRiskPercent <= 0.0 || InpRiskPercent > 5.0)) ||
-      InpMaxDailyLossPercent < 0.0 || InpMaxDailyLossPercent > 100.0 ||
-      InpMaxConsecutiveLosses < 0 || InpCooldownBarsAfterLoss < 0)
+      InpRiskReward <= 0.0 || InpMaxSpreadPoints < 0)
    {
       Print("Invalid inputs. Check lot, periods, ATR multiplier, RR and spread.");
       return INIT_PARAMETERS_INCORRECT;
@@ -445,10 +315,8 @@ int OnInit()
    g_trade.SetDeviationInPoints(InpDeviationPoints);
    g_trade.SetTypeFillingBySymbol(_Symbol);
    g_lastBarTime = iTime(_Symbol, PERIOD_M15, 0);
-   g_dayStartTime = StringToTime(TimeToString(TimeCurrent(), TIME_DATE));
-   g_dayStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
 
-   Print("SMC_Trend_Follower_Final_v1_2 initialized on ", _Symbol,
+   Print("SMC_Trend_Follower_Final_v1_1 initialized on ", _Symbol,
          ". Signals are trend/pullback based; BOS/OB/FVG logic is not implemented.");
    return INIT_SUCCEEDED;
 }
@@ -460,40 +328,6 @@ void OnDeinit(const int reason)
    if(g_atr != INVALID_HANDLE) IndicatorRelease(g_atr);
 }
 //+------------------------------------------------------------------+
-void OnTradeTransaction(const MqlTradeTransaction &trans,
-                        const MqlTradeRequest &request,
-                        const MqlTradeResult &result)
-{
-   if(trans.type != TRADE_TRANSACTION_DEAL_ADD || trans.deal == 0)
-      return;
-   if(!HistoryDealSelect(trans.deal))
-      return;
-   if(HistoryDealGetString(trans.deal, DEAL_SYMBOL) != _Symbol ||
-      (ulong)HistoryDealGetInteger(trans.deal, DEAL_MAGIC) != InpMagic)
-      return;
-
-   const long entryType = HistoryDealGetInteger(trans.deal, DEAL_ENTRY);
-   if(entryType != DEAL_ENTRY_OUT && entryType != DEAL_ENTRY_OUT_BY)
-      return;
-
-   const double net = HistoryDealGetDouble(trans.deal, DEAL_PROFIT)
-                    + HistoryDealGetDouble(trans.deal, DEAL_SWAP)
-                    + HistoryDealGetDouble(trans.deal, DEAL_COMMISSION);
-   if(net < 0.0)
-   {
-      ++g_consecutiveLosses;
-      g_cooldownBarsRemaining = MathMax(g_cooldownBarsRemaining,
-                                       InpCooldownBarsAfterLoss + 1);
-      PrintFormat("Closed loss %.2f. Consecutive losses=%d; cooldown=%d M15 bars.",
-                  net, g_consecutiveLosses, g_cooldownBarsRemaining);
-   }
-   else if(net > 0.0)
-   {
-      g_consecutiveLosses = 0;
-      PrintFormat("Closed profitable trade %.2f. Consecutive-loss counter reset.", net);
-   }
-}
-//+------------------------------------------------------------------+
 void OnTick()
 {
    // Manage existing positions on every tick, independently of new-bar entries.
@@ -502,9 +336,6 @@ void OnTick()
    // New entries are evaluated only once per new M15 bar.
    if(!IsNewBar())
       return;
-
-   if(g_cooldownBarsRemaining > 0)
-      --g_cooldownBarsRemaining;
 
    if(!SpreadAllowed())
    {
@@ -515,9 +346,6 @@ void OnTick()
    }
 
    if(HasOurPosition())
-      return;
-
-   if(!DailyGuardAllowed())
       return;
 
    const int signal = GetSignal();
