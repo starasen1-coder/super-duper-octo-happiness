@@ -10,9 +10,9 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 def strip_comments_and_strings(source: str) -> str:
-    # Keep newlines and source length roughly stable while removing comments/strings.
-    token = re.compile(r'//[^\\n]*|/\\*[\\s\\S]*?\\*/|"(?:\\\\.|[^"\\\\])*"')
-    return token.sub(lambda m: re.sub(r'[^\\n]', ' ', m.group(0)), source)
+    # Remove comments and string literals so delimiters inside them are ignored.
+    token = re.compile(r'//[^\n]*|/\*[\s\S]*?\*/|"(?:\\.|[^"\\])*"')
+    return token.sub(lambda m: re.sub(r'[^\n]', ' ', m.group(0)), source)
 
 def main() -> None:
     if len(sys.argv) != 2:
@@ -49,7 +49,7 @@ def main() -> None:
             fail(f"Required safety/entry token missing: {token}")
 
     functions = re.findall(
-        r"(?m)^\\s*(?:void|int|bool|double|string|long|ulong)\\s+([A-Za-z_]\\w*)\\s*\\(",
+        r"(?m)^\s*(?:void|int|bool|double|string|long|ulong)\s+([A-Za-z_]\w*)\s*\(",
         code,
     )
     seen = set()
