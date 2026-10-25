@@ -15,7 +15,7 @@ permissions:
 jobs:
   compile:
     runs-on: [self-hosted, windows, x64, mql5]
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,14 +28,22 @@ jobs:
             "$env:ProgramFiles\MetaTrader 5\MetaEditor64.exe",
             "$env:ProgramFiles\AMarkets MetaTrader 5\MetaEditor64.exe",
             "$env:ProgramFiles\MetaTrader 5\metaeditor64.exe",
-            "${env:ProgramFiles(x86)}\MetaTrader 5\MetaEditor64.exe"
+            "$env:ProgramFiles(x86)\MetaTrader 5\MetaEditor64.exe"
           )
-          $editor = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+          $editor = $candidates |
+            Where-Object { $_ -and (Test-Path $_) } |
+            Select-Object -First 1
+
           if (-not $editor) {
             $editor = Get-ChildItem "$env:ProgramFiles" -Filter MetaEditor64.exe -Recurse -ErrorAction SilentlyContinue |
               Select-Object -First 1 -ExpandProperty FullName
           }
-          if (-not $editor) { throw "MetaEditor64.exe not found. Install MT5/MetaEditor on the runner." }
+
+          if (-not $editor) {
+            throw "MetaEditor64.exe not found. Install MT5/MetaEditor on the runner."
+          }
+
           "path=$editor" >> $env:GITHUB_OUTPUT
           Write-Host "MetaEditor: $editor"
 
@@ -44,17 +52,38 @@ jobs:
         run: |
           $source = Join-Path $env:GITHUB_WORKSPACE "MQL5\Experts\SMC_Trend_Follower_Final_v1_2.mq5"
           $log = Join-Path $env:GITHUB_WORKSPACE "metaeditor-compile.log"
-          if (-not (Test-Path $source)) { throw "EA source not found: $source" }
+          $ex5 = Join-Path $env:GITHUB_WORKSPACE "MQL5\Experts\SMC_Trend_Follower_Final_v1_2.ex5"
+
+          if (-not (Test-Path $source)) {
+            throw "EA source not found: $source"
+          }
+
           & "${{ steps.metaeditor.outputs.path }}" /compile:"$source" /log:"$log"
+          if ($LASTEXITCODE -ne 0) {
+            throw "MetaEditor exited with code $LASTEXITCODE"
+          }
+
           Start-Sleep -Seconds 2
-          if (-not (Test-Path $log)) { throw "MetaEditor did not produce a compile log." }
-          Get-Content $log
+
+          if (-not (Test-Path $log)) {
+            throw "MetaEditor did not produce a compile log."
+          }
+
           $logText = Get-Content $log -Raw
-          if ($logText -match "(?im)\b[1-9]\d* errors?\b" -or $logText -match "(?im)error(s)?\s*:\s*[1-9]\d*") {
+          Write-Host "--- MetaEditor compile log ---"
+          Get-Content $log
+          Write-Host "--- End MetaEditor compile log ---"
+
+          if ($logText -match "(?im)\b[1-9]\d*\s+errors?\b" -or $logText -match "(?im)error(s)?\s*:\s*[1-9]\d*") {
             throw "MetaEditor compilation reported errors."
           }
-          if ($logText -notmatch "(?im)0 errors") {
-            throw "Could not confirm a clean compilation from MetaEditor log."
+
+          if ($logText -notmatch "(?im)0\s+errors") {
+            throw "Could not confirm a clean MetaEditor compile from the log."
+          }
+
+          if (-not (Test-Path $ex5)) {
+            Write-Warning "EX5 file was not created: $ex5"
           }
 
       - name: Upload compiler log and EX5 if produced
