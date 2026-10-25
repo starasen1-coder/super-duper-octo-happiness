@@ -1,0 +1,68 @@
+name: MQL5 Windows compile
+
+on:
+  push:
+    branches:
+      - fix/smc-trend-follower-v1-1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Requires a trusted, private Windows self-hosted runner with MetaTrader 5/MetaEditor installed.
+# Intentionally excludes pull_request events because the repository is public and self-hosted
+# runners must not execute untrusted fork code.
+jobs:
+  compile:
+    runs-on: [self-hosted, windows, x64, mql5]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find MetaEditor
+        id: metaeditor
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "$env:ProgramFiles\MetaTrader 5\MetaEditor64.exe",
+            "$env:ProgramFiles\AMarkets MetaTrader 5\MetaEditor64.exe",
+            "$env:ProgramFiles\MetaTrader 5\metaeditor64.exe",
+            "$env:ProgramFiles(x86)\MetaTrader 5\MetaEditor64.exe"
+          )
+          $editor = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $editor) {
+            $editor = Get-ChildItem "$env:ProgramFiles" -Filter MetaEditor64.exe -Recurse -ErrorAction SilentlyContinue |
+              Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $editor) { throw "MetaEditor64.exe not found. Install MT5/MetaEditor on the runner." }
+          "path=$editor" >> $env:GITHUB_OUTPUT
+          Write-Host "MetaEditor: $editor"
+
+      - name: Compile EA
+        shell: pwsh
+        run: |
+          $source = Join-Path $env:GITHUB_WORKSPACE "MQL5\Experts\SMC_Trend_Follower_Final_v1_2.mq5"
+          $log = Join-Path $env:GITHUB_WORKSPACE "metaeditor-compile.log"
+          if (-not (Test-Path $source)) { throw "EA source not found: $source" }
+          & "${{ steps.metaeditor.outputs.path }}" /compile:"$source" /log:"$log"
+          Start-Sleep -Seconds 2
+          if (-not (Test-Path $log)) { throw "MetaEditor did not produce a compile log." }
+          Get-Content $log
+          $logText = Get-Content $log -Raw
+          if ($logText -match "(?im)\b[1-9]\d* errors?\b" -or $logText -match "(?im)error(s)?\s*:\s*[1-9]\d*") {
+            throw "MetaEditor compilation reported errors."
+          }
+          if ($logText -notmatch "(?im)0 errors") {
+            throw "Could not confirm a clean compilation from MetaEditor log."
+          }
+
+      - name: Upload compiler log and EX5 if produced
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mql5-compile-output
+          path: |
+            metaeditor-compile.log
+            MQL5/Experts/SMC_Trend_Follower_Final_v1_2.ex5
+          if-no-files-found: warn
