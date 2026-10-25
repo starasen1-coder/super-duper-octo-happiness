@@ -144,8 +144,16 @@ bool BuildStops(const bool isBuy, const double entry, const double atr,
    }
 
    double step = (tickSize > 0.0 ? tickSize : point);
-   sl = NormalizeDouble(MathRound(sl / step) * step, _Digits);
-   tp = NormalizeDouble(MathRound(tp / step) * step, _Digits);
+   if(isBuy)
+   {
+      sl = NormalizeDouble(MathFloor(sl / step + 1e-8) * step, _Digits);
+      tp = NormalizeDouble(MathCeil(tp / step - 1e-8) * step, _Digits);
+   }
+   else
+   {
+      sl = NormalizeDouble(MathCeil(sl / step - 1e-8) * step, _Digits);
+      tp = NormalizeDouble(MathFloor(tp / step + 1e-8) * step, _Digits);
+   }
 
    if(isBuy && (sl >= entry || tp <= entry))
       return false;
@@ -252,7 +260,10 @@ void ManageTrailingStops()
       }
 
       const double step = (tickSize > 0.0 ? tickSize : point);
-      newSL = NormalizeDouble(MathRound(newSL / step) * step, _Digits);
+      if(isBuy)
+         newSL = NormalizeDouble(MathFloor(newSL / step + 1e-8) * step, _Digits);
+      else
+         newSL = NormalizeDouble(MathCeil(newSL / step - 1e-8) * step, _Digits);
       ResetLastError();
       if(!g_trade.PositionModify(ticket, newSL, tp))
          PrintFormat("Trailing modify failed. ticket=%I64u retcode=%u (%s), error=%d",
@@ -301,6 +312,7 @@ bool DailyGuardAllowed()
    {
       g_dayStartTime = today;
       g_dayStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+      g_consecutiveLosses = 0; // Daily lockout resets on the next trading day.
    }
 
    if(InpMaxDailyLossPercent > 0.0 && g_dayStartBalance > 0.0)
@@ -471,7 +483,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    {
       ++g_consecutiveLosses;
       g_cooldownBarsRemaining = MathMax(g_cooldownBarsRemaining,
-                                       InpCooldownBarsAfterLoss);
+                                       InpCooldownBarsAfterLoss + 1);
       PrintFormat("Closed loss %.2f. Consecutive losses=%d; cooldown=%d M15 bars.",
                   net, g_consecutiveLosses, g_cooldownBarsRemaining);
    }
