@@ -306,15 +306,7 @@ double CalculateVolumeByRisk(const bool isBuy, const double entry, const double 
 //+------------------------------------------------------------------+
 bool DailyGuardAllowed()
 {
-   const datetime now = TimeCurrent();
-   const datetime today = StringToTime(TimeToString(now, TIME_DATE));
-   if(today != g_dayStartTime)
-   {
-      g_dayStartTime = today;
-      g_dayStartEquity = AccountInfoDouble(ACCOUNT_EQUITY);
-      g_consecutiveLosses = 0; // Daily lockout resets on the next trading day.
-   }
-
+   // Equity baseline is updated from OnTick at the start of each broker day.
    // Equity-based daily guard includes floating P/L and closed results across the account.
    // It blocks new entries; it does not forcibly close open positions.
    if(InpMaxDailyLossPercent > 0.0 && g_dayStartEquity > 0.0)
@@ -479,6 +471,16 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
 //+------------------------------------------------------------------+
 void OnTick()
 {
+   // Reset the daily equity baseline at the broker's day boundary, even while a position is open.
+   const datetime now = TimeCurrent();
+   const datetime today = StringToTime(TimeToString(now, TIME_DATE));
+   if(today != g_dayStartTime)
+   {
+      g_dayStartTime = today;
+      g_dayStartEquity = AccountInfoDouble(ACCOUNT_EQUITY);
+      g_consecutiveLosses = 0;
+   }
+
    // Manage existing positions on every tick, independently of new-bar entries.
    ManageTrailingStops();
 
