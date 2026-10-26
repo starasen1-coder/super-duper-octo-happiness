@@ -39,7 +39,6 @@ int      g_atr    = INVALID_HANDLE;
 CTrade   g_trade;
 datetime g_lastBarTime = 0;
 datetime g_dayStartTime = 0;
-double   g_dayStartBalance = 0.0;
 double   g_dayStartEquity  = 0.0;
 int      g_consecutiveLosses = 0;
 int      g_cooldownBarsRemaining = 0;
@@ -312,7 +311,7 @@ bool DailyGuardAllowed()
    if(today != g_dayStartTime)
    {
       g_dayStartTime = today;
-      g_dayStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+      g_dayStartEquity = AccountInfoDouble(ACCOUNT_EQUITY);
       g_consecutiveLosses = 0; // Daily lockout resets on the next trading day.
    }
 
@@ -430,7 +429,6 @@ int OnInit()
    g_trade.SetTypeFillingBySymbol(_Symbol);
    g_lastBarTime = iTime(_Symbol, PERIOD_M15, 0);
    g_dayStartTime = StringToTime(TimeToString(TimeCurrent(), TIME_DATE));
-   g_dayStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
    g_dayStartEquity = AccountInfoDouble(ACCOUNT_EQUITY);
 
    Print("SMC_Trend_Follower_Final_v1_2 initialized on ", _Symbol,
