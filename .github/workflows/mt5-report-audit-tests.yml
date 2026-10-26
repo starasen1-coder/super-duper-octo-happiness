@@ -1,0 +1,26 @@
+name: MT5 Report Audit Unit Tests
+
+on:
+  push:
+    branches:
+      - research/quantitative-edge-validation-2026-10-26
+  pull_request:
+    paths:
+      - 'tools/**'
+      - '.github/workflows/mt5-report-audit-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run report-audit tests
+        run: python -m unittest discover -s tools -p 'test_*.py' -v
