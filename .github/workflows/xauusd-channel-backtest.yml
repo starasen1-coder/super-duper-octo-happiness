@@ -1,0 +1,58 @@
+name: XAUUSD Channel Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_month:
+        description: First data month (YYYY-MM)
+        required: true
+        default: "2015-01"
+      end_month:
+        description: Last data month inclusive (YYYY-MM)
+        required: true
+        default: "2026-08"
+  pull_request:
+    paths:
+      - "research/backtests/**"
+      - ".github/workflows/xauusd-channel-backtest.yml"
+  push:
+    branches:
+      - research/quantitative-edge-validation-2026-10-26
+    paths:
+      - "research/backtests/**"
+      - ".github/workflows/xauusd-channel-backtest.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      START_MONTH: ${{ github.event_name == 'workflow_dispatch' && inputs.start_month || '2015-01' }}
+      END_MONTH: ${{ github.event_name == 'workflow_dispatch' && inputs.end_month || '2026-08' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install analysis dependencies
+        run: python -m pip install --upgrade pandas numpy
+      - name: Test the signal and execution rules
+        run: python -m unittest discover -s research/backtests -p "test_*.py" -v
+      - name: Download bid/ask data and run fixed benchmark
+        run: |
+          python research/backtests/xauusd_channel_momentum.py \
+            --start "$START_MONTH" --end "$END_MONTH" \
+            --data-dir cache --output-dir out
+      - name: Upload summary and trade ledgers
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-channel-benchmark-${{ env.START_MONTH }}-${{ env.END_MONTH }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 30
