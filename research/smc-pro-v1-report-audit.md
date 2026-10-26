@@ -128,3 +128,15 @@ Reject the candidate if:
 - the source does not compile cleanly and the run cannot be reproduced.
 
 A modest positive backtest is not yet proof of a durable edge. Do not run this prototype on a live account. The current evidence is insufficient to claim a profitable strategy.
+
+
+## 6. Newly detected report-integrity issue: balance chart does not reconcile
+
+The attached HTML report contains an embedded balance image whose plotted line appears to finish around 10,026, and whose visible path ranges roughly from 9,823 to 10,332. This conflicts with the numerical summary and deal ledger:
+- The report states net result -1.64.
+- The final listed deal balance is 9,998.36 from a 10,000.00 initial balance.
+- The closed-deal P/L values in the extracted CSV sum to -1.64.
+
+The HTML references a separate PNG for its graph. The graph therefore appears stale/mismatched or generated from a different test result. The metrics table and deal ledger reconcile with each other; the image does not. This is a report-integrity warning, not proof that the strategy made a profit. Before drawing conclusions from balance curves, re-export the tester report and verify that the PNGs, HTML summary, and deal ledger all come from the same single tester run. Use a unique report filename per run and retain the exact set file/tester settings and EA hash.
+
+The screenshot should not be used as evidence of a +26 result until the mismatch is explained. Similarly, if the user saw a different drawdown value such as 1.68%, it is not present in this HTML's maximum-drawdown fields; the numerical summary here shows 4.74% balance and 4.84% equity drawdown.
