@@ -1,0 +1,60 @@
+name: XAUUSD MT5 Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: Start date YYYY.MM.DD
+        required: true
+        default: "2022.01.01"
+      to:
+        description: End date YYYY.MM.DD
+        required: true
+        default: "2026.01.01"
+
+jobs:
+  backtest:
+    runs-on: [self-hosted, windows, mt5]
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check MT5
+        shell: powershell
+        run: |
+          if (-not $env:MT5_PATH) { throw "MT5_PATH is required" }
+          if (-not (Test-Path (Join-Path $env:MT5_PATH "terminal64.exe"))) { throw "MT5 not found" }
+
+      - name: Compile EA
+        shell: powershell
+        run: |
+          $meta = Get-ChildItem "$env:MT5_PATH" -Filter "metaeditor64.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $meta) { throw "MetaEditor not found" }
+          & $meta.FullName /compile:"$PWD\XAUUSD_Liquidity_Retest_v1.mq5" /log
+          if ($LASTEXITCODE -ne 0) { throw "Compile failed" }
+
+      - name: Install backtester CLI
+        shell: powershell
+        run: |
+          if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
+            winget install --id GoLang.Go --silent --accept-source-agreements --accept-package-agreements
+          }
+          go install github.com/ek-labs/pp-mt5-backtester/cmd/pp-mt5-backtester@latest
+
+      - name: Run baseline
+        shell: powershell
+        env:
+          FROM_DATE: "${{ github.event.inputs.from }}"
+          TO_DATE: "${{ github.event.inputs.to }}"
+        run: |
+          & "$env:USERPROFILE\go\bin\pp-mt5-backtester.exe" run --ea XAUUSD_Liquidity_Retest_v1 --symbol XAUUSD --period M5 --from "$env:FROM_DATE" --to "$env:TO_DATE" --model 4 --deposit 10000 --currency USD --leverage 10 -o json | Tee-Object "xauusd-backtest.json"
+          if ($LASTEXITCODE -ne 0) { throw "Backtest failed" }
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-backtest-result
+          path: |
+            xauusd-backtest.json
+            **/*.htm
+            **/*.html
