@@ -41,6 +41,7 @@ int      g_atrHandle = INVALID_HANDLE;
 datetime g_lastEntryBar = 0;
 datetime g_lastStructureBar = 0;
 datetime g_setupBar = 0;
+datetime g_setupAgeBar = 0;
 int      g_bias = 0;
 int      g_previousBias = 0;
 int      g_setupDirection = 0;
@@ -394,6 +395,7 @@ void ClearSetup(const string why)
    g_obHigh=0;
    g_obLow=0;
    g_sweepExtreme=0;
+   g_setupAgeBar=0;
 }
 //+------------------------------------------------------------------+
 void DetectNewSetup()
@@ -430,6 +432,7 @@ void DetectNewSetup()
    g_setupDirection=sweepDirection;
    g_setupBar=iTime(_Symbol,InpEntryTF,1);
    g_setupAge=0;
+   g_setupAgeBar=iTime(_Symbol,InpEntryTF,0);
    g_obHigh=zoneHigh;
    g_obLow=zoneLow;
    g_sweepExtreme=extreme;
@@ -448,11 +451,10 @@ void ManageRetest()
    if(!g_setupActive) return;
 
    datetime currentBar=iTime(_Symbol,InpEntryTF,0);
-   static datetime lastAgeBar=0;
-   if(currentBar>0 && currentBar!=lastAgeBar)
+   if(currentBar>0 && currentBar!=g_setupAgeBar)
    {
-      if(lastAgeBar!=0) g_setupAge++;
-      lastAgeBar=currentBar;
+      g_setupAge++;
+      g_setupAgeBar=currentBar;
    }
 
    if(g_setupAge>InpSetupExpiryBars)
