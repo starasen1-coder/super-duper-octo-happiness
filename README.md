@@ -28,3 +28,8 @@
 https://github.com/aymericdamien/TopDeepLearning
 Использованы общие инженерные идеи PyTorch/sequence modeling и time-series validation;
 код из сторонних репозиториев в проект не копировался.
+
+
+## Offline research harness
+
+`ml/research.py` builds a defined OHLCV sweep/impulse benchmark and reports R-multiple metrics. Run `python -m unittest discover -s tests -v` before experiments. This first harness is not yet execution-equivalent to the MT5 EA; see `ml/README.md` for scope, input format and limitations. Historical XAUUSD data and out-of-fold ML predictions are required before any strategy comparison or edge claim.
