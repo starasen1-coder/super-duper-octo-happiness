@@ -46,6 +46,12 @@ jobs:
           python -m ml.strategy_diagnostic
           --csv data/XAUUSD_M5_BID_ASK_2015_2025.csv
           --output-dir reports/xauusd_strategy_2015_2025
+      - name: Analyze losing-trade scenarios
+        if: github.event_name == 'push'
+        run: >-
+          python -m ml.analyze_trade_outcomes
+          --csv data/XAUUSD_M5_BID_ASK_2015_2025.csv
+          --output-dir reports/xauusd_loss_analysis_2015_2025
       - name: Upload combined CSV and quality reports
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
@@ -63,5 +69,13 @@ jobs:
         with:
           name: xauusd-m5-strategy-diagnostic-2015-2025
           path: reports/xauusd_strategy_2015_2025
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload loss analysis
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-loss-analysis-2015-2025
+          path: reports/xauusd_loss_analysis_2015_2025
           if-no-files-found: error
           retention-days: 14
