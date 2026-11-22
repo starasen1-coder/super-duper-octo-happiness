@@ -20,7 +20,7 @@ def validate(path: str | Path, timeframe_minutes: int = 5) -> dict:
 
     parsed = pd.to_datetime(d["timestamp"], utc=True, errors="coerce")
     invalid_timestamps = int(parsed.isna().sum())
-    d = d.assign(timestamp=parsed).dropna(subset=["timestamp"]).sort_values("timestamp")
+    d = d.assign(timestamp=parsed).dropna(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
     duplicates = int(d.timestamp.duplicated().sum())
 
     bid_bad = int(((d.bid_high < d.bid_low) | (d.bid_open > d.bid_high) |
@@ -40,7 +40,7 @@ def validate(path: str | Path, timeframe_minutes: int = 5) -> dict:
         start = d.loc[idx - 1, "timestamp"]
         end = d.loc[idx, "timestamp"]
         minutes = float(delta.loc[idx])
-        span_days = pd.date_range(start.normalize(), end.normalize(), freq="D", tz="UTC")
+        span_days = pd.date_range(start.normalize(), end.normalize(), freq="D")
         crosses_weekend = any(day.dayofweek >= 5 for day in span_days)
         if crosses_weekend:
             kind = "weekend_or_weekly_close"
