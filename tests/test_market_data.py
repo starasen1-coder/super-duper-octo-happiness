@@ -29,6 +29,20 @@ class MarketDataValidationTests(unittest.TestCase):
         self.assertAlmostEqual(result["median_open_spread_usd"], .2)
         self.assertEqual(result["rows"], 3)
 
+    def test_spread_quote_mismatch_fails(self):
+        d = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=1, freq="5min", tz="UTC"),
+            "bid_open": [2000.0], "bid_high": [2001.0], "bid_low": [1999.0], "bid_close": [2000.5],
+            "ask_open": [2000.2], "ask_high": [2001.2], "ask_low": [1999.2], "ask_close": [2000.7],
+            "spread_open": [.5], "spread_close": [.2],
+        })
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "bars.csv"
+            d.to_csv(p, index=False)
+            result = validate(p)
+        self.assertEqual(result["verdict"], "FAIL")
+        self.assertEqual(result["spread_quote_mismatch_rows"], 1)
+
     def test_negative_spread_fails(self):
         d = pd.DataFrame({
             "timestamp": pd.date_range("2024-01-01", periods=1, freq="5min", tz="UTC"),
