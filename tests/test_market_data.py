@@ -3,10 +3,11 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 
-from ml.download_evtradelabs import download_year
+from ml.download_evtradelabs import download_range, download_year
 from ml.validate_market_data import validate
 
 
@@ -124,6 +125,37 @@ class MarketDataValidationTests(unittest.TestCase):
         self.assertEqual(result["gap_classification_counts"]["intraday_candidate"], 1)
         self.assertEqual(result["intraday_candidate_missing_slots_estimate"], 3)
         self.assertEqual(result["gap_review"], "REVIEW")
+
+
+    def test_multi_year_download_combines_years_and_preserves_duplicates(self):
+        first = pd.DataFrame({
+            "timestamp": pd.to_datetime([
+                "2015-01-02T00:00:00Z", "2015-01-02T00:00:00Z"
+            ]),
+            "bid_open": [1200.0, 1200.1],
+            "spread_open": [0.3, 0.3],
+        })
+        second = pd.DataFrame({
+            "timestamp": pd.to_datetime(["2016-01-04T00:00:00Z"]),
+            "bid_open": [1070.0],
+            "spread_open": [0.3],
+        })
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "combined.csv"
+            with patch("ml.download_evtradelabs.download_year", side_effect=[first, second]) as mocked:
+                result = download_range(2015, 2016, output)
+            self.assertEqual(mocked.call_count, 2)
+            self.assertEqual([call.args[0] for call in mocked.call_args_list], [2015, 2016])
+            self.assertEqual(len(result), 3)
+            self.assertEqual(int(result.timestamp.duplicated().sum()), 1)
+            self.assertTrue(output.exists())
+            saved = pd.read_csv(output)
+            self.assertEqual(len(saved), 3)
+
+    def test_multi_year_download_rejects_reversed_year_range(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError):
+                download_range(2024, 2015, Path(tmp) / "combined.csv")
 
 
 if __name__ == "__main__":
