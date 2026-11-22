@@ -9,10 +9,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - run: python -m pip install --upgrade pip
-      - run: pip install "numpy>=1.26,<3" "pandas>=2.2,<3"
-      - run: python -m compileall -q ml tests
-      - run: python -m unittest discover -s tests -v
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: requirements-data.txt
+      - name: Verify runtimes
+        run: |
+          node --version
+          npm --version
+          python --version
+      - name: Install data dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements-data.txt
+      - name: Compile Python
+        run: python -m compileall -q ml tests
+      - name: Run tests
+        run: npm run test:python
