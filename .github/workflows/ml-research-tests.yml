@@ -1,7 +1,7 @@
 name: ML research tests
 on:
   push:
-    branches: [feature/xauusd-liquidity-retest-v1]
+    branches: [feature/xauusd-liquidity-retest-v1, feature/xauusd-m5-2015-2025-history]
   pull_request:
     branches: [main]
 jobs:
