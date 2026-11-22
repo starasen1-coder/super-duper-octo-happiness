@@ -1,0 +1,4 @@
+# Optional research dependencies; keep runtime MT5/LLM dependencies in requirements.txt
+numpy>=1.26,<3
+pandas>=2.2,<3
+torch>=2.5,<3

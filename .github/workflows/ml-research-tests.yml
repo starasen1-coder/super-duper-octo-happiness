@@ -1,0 +1,46 @@
+name: ML research tests
+on:
+  push:
+    branches: [feature/xauusd-liquidity-retest-v1]
+  pull_request:
+    branches: [main]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: requirements-data.txt
+      - name: Verify runtimes
+        run: |
+          node --version
+          npm --version
+          python --version
+      - name: Install data dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements-data.txt
+      - name: Compile Python
+        run: python -m compileall -q ml tests
+      - name: Run tests
+        run: npm run test:python
+      - name: Download public XAUUSD M5 2025 archive
+        if: github.event_name == 'push'
+        run: python -m ml.download_evtradelabs --year 2025 --output data/XAUUSD_M5_BID_ASK_2025.csv
+      - name: Validate real archive and produce quality report
+        if: github.event_name == 'push'
+        run: python -m ml.validate_market_data --csv data/XAUUSD_M5_BID_ASK_2025.csv --json data/XAUUSD_M5_quality_2025.json
+      - name: Upload CSV and quality report
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-m5-2025-data-quality
+          path: |
+            data/XAUUSD_M5_BID_ASK_2025.csv
+            data/XAUUSD_M5_quality_2025.json
+          if-no-files-found: error
+          retention-days: 14
