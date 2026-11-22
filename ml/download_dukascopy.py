@@ -10,15 +10,16 @@ import argparse
 from pathlib import Path
 import subprocess
 import tempfile
+
 import pandas as pd
 
 
-def _run_side(start: str, end: str, side: str, target: Path) -> pd.DataFrame:
+def _run_side(start: str, end: str, side: str) -> pd.DataFrame:
     with tempfile.TemporaryDirectory(prefix=f"xauusd_{side}_") as tmp:
         cmd = [
             "npx", "--yes", "dukascopy-node",
             "-i", "xauusd", "-from", start, "-to", end,
-            "-t", "m5", "-p", side, "-v", "true",
+            "-t", "m5", "-p", side, "-v", "-vu", "units",
             "-f", "csv", "-dir", tmp, "-r", "3", "-rp", "1500",
         ]
         subprocess.run(cmd, check=True)
@@ -26,12 +27,17 @@ def _run_side(start: str, end: str, side: str, target: Path) -> pd.DataFrame:
         if not files:
             raise RuntimeError(f"No {side} CSV produced for {start}..{end}")
         df = pd.concat((pd.read_csv(p) for p in files), ignore_index=True)
+
     required = {"timestamp", "open", "high", "low", "close"}
     if not required.issubset(df.columns):
         raise ValueError(f"Unexpected Dukascopy {side} schema: {list(df.columns)}")
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True, errors="coerce")
     df = df.dropna(subset=["timestamp"]).drop_duplicates("timestamp").sort_values("timestamp")
-    rename = {c: f"{side}_{c}" for c in ("open", "high", "low", "close", "volume") if c in df.columns}
+    rename = {
+        c: f"{side}_{c}"
+        for c in ("open", "high", "low", "close", "volume")
+        if c in df.columns
+    }
     return df[["timestamp", *rename.keys()]].rename(columns=rename)
 
 
@@ -41,8 +47,8 @@ def download(start_year: int, end_year: int, output: Path) -> pd.DataFrame:
     chunks = []
     for year in range(start_year, end_year + 1):
         start, end = f"{year}-01-01", f"{year}-12-31"
-        bid = _run_side(start, end, "bid", output)
-        ask = _run_side(start, end, "ask", output)
+        bid = _run_side(start, end, "bid")
+        ask = _run_side(start, end, "ask")
         merged = bid.merge(ask, on="timestamp", how="inner", validate="one_to_one")
         if merged.empty:
             raise RuntimeError(f"No matched Bid/Ask M5 candles for {year}")
@@ -54,6 +60,7 @@ def download(start_year: int, end_year: int, output: Path) -> pd.DataFrame:
         )
         chunks.append(merged)
         print(f"{year}: matched Bid/Ask candles={len(merged):,}")
+
     result = pd.concat(chunks, ignore_index=True)
     result = result.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
     if (result[["spread_open", "spread_close"]] < 0).any().any():
