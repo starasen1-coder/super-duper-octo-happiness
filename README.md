@@ -33,3 +33,8 @@ https://github.com/aymericdamien/TopDeepLearning
 ## Offline research harness
 
 `ml/research.py` builds a defined OHLCV sweep/impulse benchmark and reports R-multiple metrics. Run `python -m unittest discover -s tests -v` before experiments. This first harness is not yet execution-equivalent to the MT5 EA; see `ml/README.md` for scope, input format and limitations. Historical XAUUSD data and out-of-fold ML predictions are required before any strategy comparison or edge claim.
+
+
+## XAUUSD M5 market data
+
+The repository includes a Dukascopy Bid/Ask M5 downloader and a data-quality validator. See `ml/README.md` for the 2015–2025 download commands, spread units, quote-side execution assumptions, and source limitations. Raw history is downloaded locally rather than committed as a large binary dataset.
