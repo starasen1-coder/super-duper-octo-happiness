@@ -52,6 +52,12 @@ jobs:
           python -m ml.analyze_trade_outcomes
           --csv data/XAUUSD_M5_BID_ASK_2015_2025.csv
           --output-dir reports/xauusd_loss_analysis_2015_2025
+      - name: Test fixed exit-target sensitivity
+        if: github.event_name == 'push'
+        run: >-
+          python -m ml.rr_sensitivity
+          --csv data/XAUUSD_M5_BID_ASK_2015_2025.csv
+          --output-dir reports/xauusd_rr_sensitivity_2015_2025
       - name: Upload combined CSV and quality reports
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
@@ -77,5 +83,13 @@ jobs:
         with:
           name: xauusd-loss-analysis-2015-2025
           path: reports/xauusd_loss_analysis_2015_2025
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload RR sensitivity
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-rr-sensitivity-2015-2025
+          path: reports/xauusd_rr_sensitivity_2015_2025
           if-no-files-found: error
           retention-days: 14
