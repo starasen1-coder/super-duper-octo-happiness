@@ -37,6 +37,28 @@ class ResearchTests(unittest.TestCase):
         })
         self.assertTrue(build_events(d).empty)
 
+    def test_loader_keeps_two_sided_quotes(self):
+        n = 110
+        d = pd.DataFrame({
+            "timestamp": pd.date_range("2024-01-01", periods=n, freq="5min", tz="UTC"),
+            "bid_open": np.full(n, 2000.0), "bid_high": np.full(n, 2001.0),
+            "bid_low": np.full(n, 1999.0), "bid_close": np.full(n, 2000.5),
+            "ask_open": np.full(n, 2000.2), "ask_high": np.full(n, 2001.2),
+            "ask_low": np.full(n, 1999.2), "ask_close": np.full(n, 2000.7),
+            "spread_open": np.full(n, .2), "spread_close": np.full(n, .2),
+            "bid_volume": np.ones(n),
+        })
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            d.to_csv(f.name, index=False); path = f.name
+        try:
+            loaded = load_ohlcv(path)
+            self.assertTrue(loaded.has_ask.all())
+            self.assertAlmostEqual(float(loaded.ask_open.iloc[0]), 2000.2)
+            self.assertAlmostEqual(float(loaded.spread_open.iloc[0]), .2)
+        finally:
+            os.unlink(path)
+
     def test_loader_normalizes_and_deduplicates(self):
         n = 110
         d = pd.DataFrame({
