@@ -15,7 +15,7 @@ import pandas as pd
 
 def load_ohlcv(path: str | Path) -> pd.DataFrame:
     df = pd.read_csv(path)
-    aliases = {c.lower().strip(): c for c in df.columns}
+    aliases = {c.lower().strip().replace(" ", "_"): c for c in df.columns}
     required = ["open", "high", "low", "close"]
     missing = [c for c in required if c not in aliases]
     if missing:
@@ -96,7 +96,6 @@ def build_events(df: pd.DataFrame, lookback: int = 36, atr_period: int = 14,
                 (prior_lo.iloc[i]-d.low.iloc[i] if side == 1 else d.high.iloc[i]-prior_hi.iloc[i])/d.atr.iloc[i]),
             "return_1_atr": float((close-d.close.iloc[i-1])/d.atr.iloc[i]) if i else 0.0,
             "vol_rel": float(d.volume.iloc[i]/max(hist.volume.mean(), 1.0)),
-            "spread_price": float(d.spread.iloc[i]) * 0.0, # spread unit conversion is broker-specific; use explicit spread_price below
             "label": int(label), "risk": risk, "rr": rr,
         })
     return pd.DataFrame(events)
@@ -121,7 +120,7 @@ def simulate(events: pd.DataFrame, probabilities: np.ndarray | None = None,
         "trades": int(len(net)),
         "win_rate": float((net > 0).mean()),
         "expectancy_r": float(net.mean()),
-        "profit_factor": float(wins / losses) if losses > 0 else (float("inf") if wins > 0 else 0.0),
+        "profit_factor": float(wins / losses) if losses > 0 else (None if wins > 0 else 0.0),
         "max_dd_r": float(dd.max(initial=0.0)),
         "net_r": float(net.sum()),
     }
