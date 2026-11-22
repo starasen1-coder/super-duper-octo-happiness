@@ -75,3 +75,22 @@ Train the LSTM only on historical candidates. Compare:
 
 The key result is out-of-sample expectancy after spread/commission/slippage,
 not accuracy alone.
+
+
+## Offline OHLCV research harness
+
+Run from the repository root:
+
+```bash
+pip install -r requirements-ml.txt
+python -m unittest discover -s tests -v
+python -m ml.research --csv path/to/XAUUSD_M5.csv --out research_output --horizon 48 --rr 2.0 --cost-r 0.10
+```
+
+Accepted time columns: `time`, `datetime`, `date`, `timestamp`. OHLC columns are required; `Tick Volume` / `volume` is optional. `--cost-r` is round-trip cost in R units. The CSV spread column is not converted to price because broker point size and digits differ.
+
+The current harness is an initial, explicit benchmark: 36-bar sweep/reclaim + impulse, next-bar-open entry, stop beyond sweep wick, fixed-R target, and conservative stop-first handling when TP and SL are touched in the same candle. It is **not yet an exact reproduction** of the MT5 EA: H1 BOS/CHoCH, OB retest, Volume Profile, news/session filters and broker-specific execution are not included. Do not compare its output to live EA results as if they were the same rules.
+
+Optional `predictions.csv` must contain out-of-fold `event_index,probability`. The harness compares the ML-filtered subset with the exact same matched candidate set before filtering. In-sample predictions are not evidence of an edge.
+
+No XAUUSD historical dataset was present in the repository during implementation. Synthetic unit tests validate mechanics only; they do not establish profitability or superiority.
