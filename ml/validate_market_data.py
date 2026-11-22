@@ -25,6 +25,9 @@ def validate(path: str | Path) -> dict:
                    (d.ask_open < d.ask_low) | (d.ask_close > d.ask_high) |
                    (d.ask_close < d.ask_low)).sum())
     negative_spread = int(((d.spread_open < 0) | (d.spread_close < 0)).sum())
+    open_mismatch = (d.spread_open - (d.ask_open - d.bid_open)).abs() > 1e-5
+    close_mismatch = (d.spread_close - (d.ask_close - d.bid_close)).abs() > 1e-5
+    spread_mismatch = int((open_mismatch | close_mismatch).sum())
     delta = d.timestamp.diff().dt.total_seconds().div(60)
     # Report all gaps > 5 minutes. Weekends and market closures are not auto-classified as faults.
     gaps = delta[delta > 5]
@@ -37,11 +40,12 @@ def validate(path: str | Path) -> dict:
         "invalid_bid_ohlc_rows": bid_bad,
         "invalid_ask_ohlc_rows": ask_bad,
         "negative_spread_rows": negative_spread,
+        "spread_quote_mismatch_rows": spread_mismatch,
         "gaps_over_5m": int(len(gaps)),
         "median_open_spread_usd": float(spread.median()),
         "p95_open_spread_usd": float(spread.quantile(.95)),
         "max_open_spread_usd": float(spread.max()),
-        "verdict": "PASS" if len(d) and not duplicates and not bid_bad and not ask_bad and not negative_spread else "FAIL",
+        "verdict": "PASS" if len(d) and not duplicates and not bid_bad and not ask_bad and not negative_spread and not spread_mismatch else "FAIL",
     }
 
 
