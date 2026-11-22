@@ -42,7 +42,10 @@ def validate(path: str | Path, timeframe_minutes: int = 5) -> dict:
         minutes = float(delta.loc[idx])
         span_days = pd.date_range(start.normalize(), end.normalize(), freq="D")
         crosses_weekend = any(day.dayofweek >= 5 for day in span_days)
-        if crosses_weekend:
+        # A short gap on Sunday can occur after the weekly open; do not hide it
+        # inside the weekend bucket. Only long weekend-spanning closures are
+        # classified as weekly market closures.
+        if crosses_weekend and minutes >= 8 * 60:
             kind = "weekend_or_weekly_close"
         elif minutes > 60:
             kind = "session_break_or_holiday"
@@ -85,6 +88,9 @@ def validate(path: str | Path, timeframe_minutes: int = 5) -> dict:
         "gap_classification_counts": gap_counts,
         "intraday_candidate_missing_slots_estimate": int(intraday_missing_slots),
         "largest_gaps": sorted(gap_rows, key=lambda gap: gap["gap_minutes"], reverse=True)[:20],
+        "intraday_candidate_gaps": [
+            gap for gap in gap_rows if gap["classification"] == "intraday_candidate"
+        ],
         "median_open_spread_usd": float(spread.median()) if len(d) else None,
         "p95_open_spread_usd": float(spread.quantile(.95)) if len(d) else None,
         "max_open_spread_usd": float(spread.max()) if len(d) else None,
