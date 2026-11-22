@@ -16,24 +16,40 @@ import pandas as pd
 def load_ohlcv(path: str | Path) -> pd.DataFrame:
     df = pd.read_csv(path)
     aliases = {c.lower().strip().replace(" ", "_"): c for c in df.columns}
-    required = ["open", "high", "low", "close"]
-    missing = [c for c in required if c not in aliases]
-    if missing:
-        raise ValueError(f"Missing OHLC columns: {missing}")
     time_col = next((aliases[k] for k in ("time", "datetime", "date", "timestamp") if k in aliases), None)
     if time_col is None:
         raise ValueError("CSV must contain time/datetime/date/timestamp")
-    out = pd.DataFrame({k: pd.to_numeric(df[aliases[k]], errors="coerce") for k in required})
+
+    # Bid is the signal chart. Ask OHLC is retained for realistic short exits
+    # and long entries when a matched two-sided dataset is supplied.
+    bid_names = ["bid_open", "bid_high", "bid_low", "bid_close"]
+    has_bid = all(k in aliases for k in bid_names)
+    names = bid_names if has_bid else ["open", "high", "low", "close"]
+    missing = [k for k in names if k not in aliases]
+    if missing:
+        raise ValueError(f"Missing OHLC columns: {missing}")
+    out = pd.DataFrame({k.replace("bid_", ""): pd.to_numeric(df[aliases[k]], errors="coerce")
+                        for k in names})
     out["time"] = pd.to_datetime(df[time_col], errors="coerce", utc=True)
-    vol_col = next((aliases[k] for k in ("tick_volume", "volume", "vol") if k in aliases), None)
-    spr_col = next((aliases[k] for k in ("spread", "spread_points") if k in aliases), None)
-    out["volume"] = pd.to_numeric(df[vol_col], errors="coerce") if vol_col else 0.0
-    out["spread"] = pd.to_numeric(df[spr_col], errors="coerce") if spr_col else 0.0
-    out = out.dropna(subset=["time", *required]).sort_values("time").drop_duplicates("time").reset_index(drop=True)
+
+    for k in ("ask_open", "ask_high", "ask_low", "ask_close",
+              "spread_open", "spread_close", "spread_mean_ohlc"):
+        if k in aliases:
+            out[k] = pd.to_numeric(df[aliases[k]], errors="coerce")
+    vol_key = next((k for k in ("bid_volume", "volume", "tick_volume", "vol") if k in aliases), None)
+    out["volume"] = pd.to_numeric(df[aliases[vol_key]], errors="coerce") if vol_key else 0.0
+    out["has_ask"] = all(k in out.columns for k in ("ask_open", "ask_high", "ask_low", "ask_close"))
+    out = out.dropna(subset=["time", "open", "high", "low", "close"]).sort_values("time").drop_duplicates("time").reset_index(drop=True)
     if len(out) < 100:
         raise ValueError("At least 100 valid bars are required")
     if (out["high"] < out["low"]).any() or (out["close"] <= 0).any():
         raise ValueError("Invalid OHLC values")
+    if out["has_ask"].any():
+        bad = (out.ask_high < out.ask_low) | (out.ask_open > out.ask_high) | (out.ask_open < out.ask_low) | (out.ask_close > out.ask_high) | (out.ask_close < out.ask_low)
+        if bad.any():
+            raise ValueError("Invalid Ask OHLC values")
+        if "spread_open" in out and (out.spread_open < 0).any():
+            raise ValueError("Negative Bid/Ask spread")
     return out
 
 
@@ -46,7 +62,11 @@ def _atr(df: pd.DataFrame, period: int) -> pd.Series:
 def build_events(df: pd.DataFrame, lookback: int = 36, atr_period: int = 14,
                  impulse_atr: float = 1.4, body_ratio: float = 0.65,
                  horizon: int = 48, rr: float = 2.0) -> pd.DataFrame:
-    """Create candidate rows and first-touch labels; all features use data <= event bar."""
+    """Create candidate rows with Bid/Ask-aware first-touch labels.
+
+    Signal structure is calculated on Bid bars. Long entries use Ask open and
+    long exits use Bid; short entries use Bid open and short exits use Ask.
+    """
     if lookback < 10 or horizon < 1 or rr <= 0:
         raise ValueError("Invalid lookback, horizon or RR")
     d = df.copy().reset_index(drop=True)
@@ -55,48 +75,58 @@ def build_events(df: pd.DataFrame, lookback: int = 36, atr_period: int = 14,
     prior_lo = d.low.shift(1).rolling(lookback, min_periods=lookback).min()
     rng = d.high - d.low
     body = (d.close - d.open).abs() / rng.replace(0, np.nan)
-    # Sweep + reclaim on a completed candle, followed by a directional impulse.
     bull = (d.low < prior_lo) & (d.close > prior_lo) & (d.close > d.open)
     bear = (d.high > prior_hi) & (d.close < prior_hi) & (d.close < d.open)
     impulse = (rng >= d.atr * impulse_atr) & (body >= body_ratio)
     direction = np.where(bull & impulse, 1, np.where(bear & impulse, -1, 0))
+    has_ask = bool(d["has_ask"].all()) if "has_ask" in d.columns else all(
+        k in d.columns for k in ("ask_open", "ask_high", "ask_low", "ask_close"))
     events = []
     for i in np.flatnonzero(direction):
         if i + 1 >= len(d) or not np.isfinite(d.atr.iloc[i]) or d.atr.iloc[i] <= 0:
             continue
         side = int(direction[i])
-        entry = float(d.open.iloc[i+1])
-        # Stop is beyond the sweep wick, with a small ATR buffer.
+        entry_i = i + 1
+        entry = float(d.ask_open.iloc[entry_i] if side == 1 and has_ask else d.open.iloc[entry_i])
+        if side == -1:
+            entry = float(d.open.iloc[entry_i])  # short opens at Bid
         sl = float((d.low.iloc[i] if side == 1 else d.high.iloc[i]) + (-side) * d.atr.iloc[i] * 0.10)
         risk = abs(entry - sl)
-        if risk <= 0:
+        if risk <= 0 or (side == 1 and entry <= sl) or (side == -1 and entry >= sl):
             continue
         tp = entry + side * risk * rr
-        # Entry-bar gap may already invalidate the setup; do not silently backfill.
-        if (side == 1 and entry <= sl) or (side == -1 and entry >= sl):
-            continue
         label = np.nan
         exit_i = -1
-        for j in range(i+1, min(i+1+horizon, len(d))):
-            hit_sl = d.low.iloc[j] <= sl if side == 1 else d.high.iloc[j] >= sl
-            hit_tp = d.high.iloc[j] >= tp if side == 1 else d.low.iloc[j] <= tp
+        for j in range(entry_i, min(entry_i + horizon, len(d))):
+            if side == 1:
+                exit_low, exit_high = float(d.low.iloc[j]), float(d.high.iloc[j])
+            elif has_ask:
+                exit_low, exit_high = float(d.ask_low.iloc[j]), float(d.ask_high.iloc[j])
+            else:
+                exit_low, exit_high = float(d.low.iloc[j]), float(d.high.iloc[j])
+            hit_sl = exit_low <= sl if side == 1 else exit_high >= sl
+            hit_tp = exit_high >= tp if side == 1 else exit_low <= tp
             if hit_sl or hit_tp:
-                label = 0 if hit_sl else 1  # stop-first when both touched
+                label = 0 if hit_sl else 1  # conservative stop-first on same candle
                 exit_i = j
                 break
         if np.isnan(label):
-            continue  # censored observations are not forced into the negative class
+            continue
         hist = d.iloc[max(0, i-19):i+1]
         close = float(d.close.iloc[i])
+        spread_entry = float(d.spread_open.iloc[entry_i]) if "spread_open" in d.columns else (
+            float(d.ask_open.iloc[entry_i] - d.open.iloc[entry_i]) if has_ask else np.nan)
         events.append({
-            "event_index": i, "entry_index": i+1, "exit_index": exit_i,
+            "event_index": i, "entry_index": entry_i, "exit_index": exit_i,
             "time": d.time.iloc[i], "direction": side, "entry": entry, "sl": sl, "tp": tp,
             "atr": float(d.atr.iloc[i]), "range_atr": float(rng.iloc[i]/d.atr.iloc[i]),
             "body_ratio": float(body.iloc[i]), "sweep_depth_atr": float(
                 (prior_lo.iloc[i]-d.low.iloc[i] if side == 1 else d.high.iloc[i]-prior_hi.iloc[i])/d.atr.iloc[i]),
             "return_1_atr": float((close-d.close.iloc[i-1])/d.atr.iloc[i]) if i else 0.0,
             "vol_rel": float(d.volume.iloc[i]/max(hist.volume.mean(), 1.0)),
+            "spread_entry_usd": spread_entry,
             "label": int(label), "risk": risk, "rr": rr,
+            "execution_quotes": "bid_ask" if has_ask else "bid_only",
         })
     return pd.DataFrame(events)
 
