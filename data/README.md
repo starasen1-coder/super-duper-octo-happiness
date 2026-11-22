@@ -1,21 +1,22 @@
 # XAUUSD M5 historical data
 
-## Primary public source
+## Public archive source
 
-Dukascopy publishes historical XAUUSD candles from 2003-05-05 UTC, including
-M5 and separate Bid/Ask price series. The downloader in this repository creates
-a two-sided CSV for 2015–2025. Source page:
-https://www.dukascopy-node.app/instrument/xauusd
+EV Trading Labs publishes an annual XAUUSD M5 archive derived from Dukascopy
+data. The catalogue documents Bid/Ask OHLC fields and UTC Unix timestamps.
+The 2025 archive is publicly accessible without an account:
 
-The CSV is generated locally because the full 11-year dataset is too large and
-changes independently of source code. The raw file is intentionally excluded
-from Git by `.gitignore`; the reproducible downloader and validation code are
-committed instead.
+https://evtradelabs.com/api/simulator/data/XAUUSD/M5/2025.json.gz
 
-## Windows 10 setup
+Catalogue and licence: https://evtradelabs.com/data
+Attribution is required: EV Trading Labs. The catalogue lists the 2025 file as
+approximately 2 MB and 70,906 bars. These are source catalogue figures, not
+our own post-download validation results.
 
-Install Python 3.11 and Node.js 22 LTS (npm is bundled with Node.js). Open
-PowerShell in the repository root:
+## Download and convert to CSV
+
+Install Python 3.11 and Node.js 22 LTS (npm is bundled with Node.js). From the
+repository root in PowerShell:
 
 ```powershell
 py -3.11 -m venv .venv
@@ -24,38 +25,40 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements-data.txt
 node --version
 npm --version
-```
 
-## Download and validate 2015–2025
-
-```powershell
-npm run data:download -- --from-year 2015 --to-year 2025 --output data\XAUUSD_M5_BID_ASK_2015_2025.csv
-npm run data:validate -- --csv data\XAUUSD_M5_BID_ASK_2015_2025.csv --json data\XAUUSD_M5_quality.json
+npm run data:ev -- --year 2025 --output data\XAUUSD_M5_BID_ASK_2025.csv
+npm run data:validate -- --csv data\XAUUSD_M5_BID_ASK_2025.csv --json data\XAUUSD_M5_quality_2025.json
 npm run test:python
 ```
 
-Equivalent direct Python commands:
+The converter downloads the public gzip JSON archive, converts Unix-second
+timestamps to UTC, renames Bid/Ask OHLC columns, and calculates bar-open and
+bar-close spread in USD price units. It preserves duplicate/invalid rows so
+the validator can detect them.
 
+For 2015–2025, use the separate Dukascopy downloader:
 ```powershell
-python -m ml.download_dukascopy --from-year 2015 --to-year 2025 --output data\XAUUSD_M5_BID_ASK_2015_2025.csv
-python -m ml.validate_market_data --csv data\XAUUSD_M5_BID_ASK_2015_2025.csv --json data\XAUUSD_M5_quality.json
+npm run data:download -- --from-year 2015 --to-year 2025 --output data\XAUUSD_M5_BID_ASK_2015_2025.csv
 ```
 
-The downloader uses `npx dukascopy-node` to fetch Bid and Ask separately,
-matches identical M5 timestamps, and saves both quote sides. The CSV contains
-Bid/Ask OHLC, source volume where available, and spread estimates. Spread values
-are USD price differences, not MT5 points.
+## What the validator checks
 
-## Interpretation and limitations
+- Missing or invalid timestamps and duplicate candle timestamps.
+- Bid and Ask OHLC consistency.
+- Negative spread and mismatch between stored spread and Ask minus Bid.
+- Gaps greater than five minutes, separated into weekly closures, longer
+  session/holiday breaks, and short intraday gaps requiring review.
+- Median, 95th percentile and maximum bar-open spread.
 
-- `spread_open = ask_open - bid_open` is a bar-open estimate.
-- `spread_close = ask_close - bid_close` is a bar-close estimate.
-- `spread_mean_ohlc` is only an OHLC-derived proxy. Ask/Bid candle extrema are
-  not synchronized tick-by-tick.
-- Exact intrabar spread distribution requires timestamp-aligned tick quotes.
-- Dukascopy is not AMarkets. Do not label this dataset as AMarkets historical
-  spread or use it as an exact broker execution model.
-- Historical quote data is for offline software research. It does not establish
-  that any strategy has a positive edge or is suitable for live trading.
+Weekend or scheduled market closure is not automatically a data defect.
+Short intraday gaps are flagged for review. PASS covers row/quote integrity;
+inspect gap_review separately.
 
-No raw data file has been downloaded into this repository by the setup commit.
+## Important limitations
+
+- Archive OHLC bars are not tick-synchronized. Bar-open and bar-close spread
+  are estimates; intrabar spread cannot be reconstructed exactly.
+- Provider volume is not centralized exchange traded volume.
+- This is Dukascopy-derived reference history, not AMarkets broker history.
+- Historical quote data does not establish strategy profitability.
+- Raw archives and generated CSV files are excluded from Git.
