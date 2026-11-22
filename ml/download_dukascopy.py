@@ -23,9 +23,9 @@ def _run_side(start: str, end: str, side: str, target: Path) -> pd.DataFrame:
         ]
         subprocess.run(cmd, check=True)
         files = sorted(Path(tmp).glob("*.csv"))
-        if len(files) != 1:
-            raise RuntimeError(f"Expected one {side} CSV for {start}..{end}, found {len(files)}")
-        df = pd.read_csv(files[0])
+        if not files:
+            raise RuntimeError(f"No {side} CSV produced for {start}..{end}")
+        df = pd.concat((pd.read_csv(p) for p in files), ignore_index=True)
     required = {"timestamp", "open", "high", "low", "close"}
     if not required.issubset(df.columns):
         raise ValueError(f"Unexpected Dukascopy {side} schema: {list(df.columns)}")
