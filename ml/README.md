@@ -94,3 +94,48 @@ The current harness is an initial, explicit benchmark: 36-bar sweep/reclaim + im
 Optional `predictions.csv` must contain out-of-fold `event_index,probability`. The harness compares the ML-filtered subset with the exact same matched candidate set before filtering. In-sample predictions are not evidence of an edge.
 
 No XAUUSD historical dataset was present in the repository during implementation. Synthetic unit tests validate mechanics only; they do not establish profitability or superiority.
+
+
+## Two-sided XAUUSD M5 history and spread
+
+Primary source: Dukascopy public historical feed, accessed through the open-source
+`dukascopy-node` downloader. Dukascopy lists XAUUSD M5 availability from
+2003-05-05 UTC. The CLI supports separate Bid/Ask OHLC downloads, CSV, volume,
+and date-range selection. Source documentation:
+- https://www.dukascopy-node.app/instrument/xauusd
+- https://www.dukascopy-node.app/config/cli
+
+Download 2015–2025 (11 calendar years) from the repository root:
+
+```bash
+npm --version
+python -m pip install -r requirements-ml.txt
+python -m ml.download_dukascopy --from-year 2015 --to-year 2025 --output data/XAUUSD_M5_BID_ASK_2015_2025.csv
+python -m ml.validate_market_data --csv data/XAUUSD_M5_BID_ASK_2015_2025.csv --json data/XAUUSD_M5_quality.json
+python -m unittest discover -s tests -v
+```
+
+The downloader invokes `npx dukascopy-node`, so Node.js/npm must be installed
+and internet access must be available. It downloads Bid and Ask separately,
+matches identical M5 timestamps, and saves both quote sides. It reports
+`spread_open = ask_open - bid_open` and `spread_close = ask_close - bid_close`
+in **USD price units**, not points. Ask/Bid OHLC extremes are not synchronized
+tick-by-tick; therefore open spread is a bar-open estimate and OHLC-derived
+mean spread is only a proxy. For exact intrabar spread distributions, use
+Dukascopy tick data and aggregate the timestamp-aligned Ask/Bid quotes.
+
+The research loader treats Bid candles as the signal chart. With both quote
+sides present, long entries are modeled at Ask open and long exits against Bid;
+short entries are at Bid open and short exits against Ask. This avoids the
+unrealistic assumption that every trade can enter and exit at Bid. Commission,
+slippage and broker-specific execution costs remain separate inputs.
+
+**Important:** Dukascopy is not the user's AMarkets feed. Its spread history
+must not be presented as AMarkets historical spread. Use it as an external
+reference dataset; obtain a broker-exported tick or M5 Bid/Ask history to
+validate the final EA against the intended broker. Do not replace missing
+spread with a constant without marking that scenario as synthetic.
+
+Raw market data is intentionally not committed to GitHub: the user downloads
+it locally with the script. This keeps the source repository small and preserves
+source attribution.
