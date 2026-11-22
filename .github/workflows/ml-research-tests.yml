@@ -40,6 +40,12 @@ jobs:
           --markdown data/quality_report_2015_2025.md
           --expected-from-year 2015
           --expected-to-year 2025
+      - name: Run offline strategy diagnostic
+        if: github.event_name == 'push'
+        run: >-
+          python -m ml.strategy_diagnostic
+          --csv data/XAUUSD_M5_BID_ASK_2015_2025.csv
+          --output-dir reports/xauusd_strategy_2015_2025
       - name: Upload combined CSV and quality reports
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
@@ -49,5 +55,13 @@ jobs:
             data/XAUUSD_M5_BID_ASK_2015_2025.csv
             data/XAUUSD_M5_quality_2015_2025.json
             data/quality_report_2015_2025.md
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload strategy diagnostic
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-m5-strategy-diagnostic-2015-2025
+          path: reports/xauusd_strategy_2015_2025
           if-no-files-found: error
           retention-days: 14
