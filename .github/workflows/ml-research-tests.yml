@@ -28,3 +28,19 @@ jobs:
         run: python -m compileall -q ml tests
       - name: Run tests
         run: npm run test:python
+      - name: Download public XAUUSD M5 2025 archive
+        if: github.event_name == 'push'
+        run: python -m ml.download_evtradelabs --year 2025 --output data/XAUUSD_M5_BID_ASK_2025.csv
+      - name: Validate real archive and produce quality report
+        if: github.event_name == 'push'
+        run: python -m ml.validate_market_data --csv data/XAUUSD_M5_BID_ASK_2025.csv --json data/XAUUSD_M5_quality_2025.json
+      - name: Upload CSV and quality report
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-m5-2025-data-quality
+          path: |
+            data/XAUUSD_M5_BID_ASK_2025.csv
+            data/XAUUSD_M5_quality_2025.json
+          if-no-files-found: error
+          retention-days: 14
