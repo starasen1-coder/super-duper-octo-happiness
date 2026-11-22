@@ -1,0 +1,16 @@
+{
+  "name": "xauusd-m5-research",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reproducible offline XAUUSD historical data research tools",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "env:check": "node --version && npm --version && python --version",
+    "data:download": "python -m ml.download_dukascopy",
+    "data:validate": "python -m ml.validate_market_data",
+    "test:python": "python -m unittest discover -s tests -v"
+  }
+}
