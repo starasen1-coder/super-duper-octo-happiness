@@ -9,6 +9,7 @@
   },
   "scripts": {
     "env:check": "node --version && npm --version && python --version",
+    "data:ev": "python -m ml.download_evtradelabs",
     "data:download": "python -m ml.download_dukascopy",
     "data:validate": "python -m ml.validate_market_data",
     "test:python": "python -m unittest discover -s tests -v"
