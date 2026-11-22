@@ -108,5 +108,23 @@ class MarketDataValidationTests(unittest.TestCase):
             self.assertEqual(checked["verdict"], "PASS")
 
 
+    def test_short_sunday_session_gap_is_not_hidden_as_weekend(self):
+        d = pd.DataFrame({
+            "timestamp": pd.to_datetime(["2024-01-07T23:00:00Z", "2024-01-07T23:20:00Z"]),
+            "bid_open": [2000.0, 2001.0], "bid_high": [2001.0, 2002.0],
+            "bid_low": [1999.0, 2000.0], "bid_close": [2000.5, 2001.5],
+            "ask_open": [2000.2, 2001.2], "ask_high": [2001.2, 2002.2],
+            "ask_low": [1999.2, 2000.2], "ask_close": [2000.7, 2001.7],
+            "spread_open": [.2, .2], "spread_close": [.2, .2],
+        })
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bars.csv"
+            d.to_csv(path, index=False)
+            result = validate(path)
+        self.assertEqual(result["gap_classification_counts"]["intraday_candidate"], 1)
+        self.assertEqual(result["intraday_candidate_missing_slots_estimate"], 3)
+        self.assertEqual(result["gap_review"], "REVIEW")
+
+
 if __name__ == "__main__":
     unittest.main()
