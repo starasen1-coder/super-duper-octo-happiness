@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 *.ex5
 *.log
+node_modules/
+.dukascopy-cache/
+data/*.csv
+data/*.json
