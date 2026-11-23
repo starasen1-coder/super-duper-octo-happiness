@@ -5,6 +5,8 @@ on:
     branches: [agent-reach-setup]
     paths:
       - "agent-reach/**"
+      - "security/skillspector/**"
+      - "security/tool-versions.json"
       - ".github/workflows/agent-reach-tests.yml"
   workflow_dispatch:
 
@@ -36,3 +38,22 @@ jobs:
         run: docker compose -f deploy/docker-compose.yml config --quiet
       - name: Build read-only API image
         run: docker build -f deploy/Dockerfile -t agent-reach-research-api:ci .
+      - name: Test SkillSpector policy
+        env:
+          PYTHONPATH: .
+        run: python -m pytest security/skillspector/tests -q
+      - name: Download and verify pinned SkillSpector
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/NVIDIA/SkillSpector/releases/download/v2.13.6/skillspector-2.13.6-py3-none-any.whl \
+            --output /tmp/skillspector.whl
+          echo "e7b46c55e726405b2a068d375d1ee8e799e15d86f3fc05f84feb5ba962198b15  /tmp/skillspector.whl" | sha256sum --check -
+      - name: Install pinned SkillSpector
+        run: python -m pip install /tmp/skillspector.whl
+      - name: Run static scan against benign fixture
+        run: |
+          python security/skillspector/scan.py \
+            --target security/skillspector/fixtures/benign-skill \
+            --revision "$GITHUB_SHA" \
+            --scanner-version 2.13.6 \
+            --output-dir /tmp/skillspector-report
