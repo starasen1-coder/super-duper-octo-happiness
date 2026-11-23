@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Iterable
+import subprocess
+import time
 
 from agent_reach.storage.repository import IngestResult, ResearchRepository
 from agent_reach.worker.normalize import normalize_record
@@ -45,7 +47,14 @@ def collect_github_search(
     started = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     repository.create_job(job_id, "agent-reach-github", started_at=started)
     try:
-        records = adapter.search_github(query, limit=10)
+        for attempt in range(2):
+            try:
+                records = adapter.search_github(query, limit=10)
+                break
+            except (TimeoutError, ConnectionError, subprocess.TimeoutExpired):
+                if attempt == 1:
+                    raise
+                time.sleep(1)
         result = ingest_records(
             records,
             source_name="agent-reach-github",
