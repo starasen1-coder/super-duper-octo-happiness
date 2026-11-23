@@ -65,6 +65,8 @@ def build_signals(
     x["h1_bear"] = x["h1_bear"].fillna(False).astype(bool)
     x["raw_long"] = x["h1_bull"] & x["sweep_low"] & x["bull_impulse"] & x["bull_confirm"] & (x["flow_confirm"] == 1)
     x["raw_short"] = x["h1_bear"] & x["sweep_high"] & x["bear_impulse"] & x["bear_confirm"] & (x["flow_confirm"] == -1)
-    x["entry"] = (x["raw_long"] | x["raw_short"]).shift(1).fillna(False).astype(int)
-    x["side"] = np.where(x["raw_long"].shift(1).fillna(False), 1, np.where(x["raw_short"].shift(1).fillna(False), -1, 0))
+    prior_long = x["raw_long"].astype("boolean").shift(1).fillna(False).astype(bool)
+    prior_short = x["raw_short"].astype("boolean").shift(1).fillna(False).astype(bool)
+    x["entry"] = (prior_long | prior_short).astype(int)
+    x["side"] = np.where(prior_long, 1, np.where(prior_short, -1, 0))
     return x
