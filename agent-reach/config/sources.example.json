@@ -2,6 +2,7 @@
   {
     "name": "github-public",
     "source_type": "github",
+    "query": "AI agent security skills",
     "enabled": true
   }
 ]
