@@ -31,7 +31,9 @@ def test_api_lists_items_sources_jobs_and_item_detail(tmp_path):
     client = TestClient(create_app(repository=repository, api_token="test-token"))
 
     headers = {"Authorization": "Bearer test-token"}
-    assert client.get("/health").status_code == 200
+    health = client.get("/health")
+    assert health.status_code == 200
+    assert health.json()["last_collection_status"] == "completed"
     assert client.get("/v1/sources", headers=headers).json()[0]["name"] == "public-github"
     assert client.get("/v1/items", headers=headers).json()["items"][0]["id"] == item.id
     assert client.get(f"/v1/items/{item.id}", headers=headers).json()["title"] == "Example project"
