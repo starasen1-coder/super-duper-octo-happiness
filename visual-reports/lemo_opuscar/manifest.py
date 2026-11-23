@@ -34,7 +34,7 @@ def build_manifest(
         raise ValueError("at least one curated report input is required")
 
     credits = [str(value).strip() for value in asset_credits if str(value).strip()]
-    uses_noncommercial_docs = any("CC BY-NC" in value for value in credits)
+    uses_noncommercial_docs = any("CC BY-NC" in value.upper() for value in credits)
     if intended_use == "commercial" and uses_noncommercial_docs and not commercial_permission:
         raise ValueError("LEMO Opuscar style documentation is CC BY-NC 4.0; commercial permission is required")
 
