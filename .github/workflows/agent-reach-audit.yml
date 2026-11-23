@@ -1,0 +1,70 @@
+name: Agent Reach upstream audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-reach-upstream-audit
+  cancel-in-progress: true
+
+jobs:
+  inspect-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download official release archive (do not execute)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            https://github.com/Panniantong/Agent-Reach/releases/latest/download/agent-reach.zip \
+            --output /tmp/agent-reach.zip
+
+      - name: Inspect archive paths and source markers
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import PurePosixPath
+          from zipfile import ZipFile
+          import re
+
+          archive = "/tmp/agent-reach.zip"
+          markers = (
+              "subprocess", "os.system", "eval(", "exec(",
+              "urlopen", "requests.", "socket.", "pickle.",
+              "shutil.rmtree", ".unlink(", ".write_text(", ".write_bytes(",
+          )
+
+          with ZipFile(archive) as zf:
+              names = zf.namelist()
+              unsafe = []
+              for name in names:
+                  p = PurePosixPath(name)
+                  if p.is_absolute() or ".." in p.parts:
+                      unsafe.append(name)
+              if unsafe:
+                  raise SystemExit("Unsafe archive paths found: " + repr(unsafe))
+
+              print(f"Archive entries: {len(names)}")
+              print("Top-level entries:")
+              for item in sorted({n.split("/", 1)[0] for n in names if n}):
+                  print(" -", item)
+
+              print("\nReview markers (matches require human review; they are not proof of malicious behavior):")
+              source_files = [n for n in names if n.endswith((".py", ".toml", ".sh"))]
+              count = 0
+              for name in source_files:
+                  try:
+                      data = zf.read(name).decode("utf-8", errors="replace")
+                  except KeyError:
+                      continue
+                  found = [m for m in markers if m in data]
+                  if found:
+                      count += 1
+                      print(f"{name}: {', '.join(found)}")
+              print(f"Files with review markers: {count}")
+              print("\nNo downloaded project code was executed or installed.")
+          PY
