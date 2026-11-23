@@ -4,7 +4,7 @@ LEMO Opuscar is a code-driven film-making skill for compatible coding agents. It
 
 ## Security status
 
-<badge>BLOCKED — manual review required</badge>
+**Security status: BLOCKED — manual review required**
 
 A static SkillSpector v2.13.6 scan of the pinned upstream skill at commit `2ef41cca9a9330c96c00ec0d8d40807b4b062bb4` returned policy decision **block**: one HIGH Tool Misuse finding (TM2) in `scripts/setup.sh:99` and one MEDIUM MCP Least Privilege finding (LP3) in `SKILL.md:1`. The aggregate recommendation was CAUTION, but the local policy blocks any HIGH finding. This is not a claim that the project is malicious; it means it has not passed this project's pre-use gate.
 
