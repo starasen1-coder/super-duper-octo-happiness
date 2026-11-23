@@ -11,6 +11,7 @@ class SourceConfig:
     name: str
     source_type: str
     enabled: bool = True
+    query: str = ""
 
 
 def load_sources(path: str | Path) -> list[SourceConfig]:
@@ -31,5 +32,8 @@ def load_sources(path: str | Path) -> list[SourceConfig]:
         if name in seen:
             raise ValueError(f"duplicate source: {name}")
         seen.add(name)
-        result.append(SourceConfig(name=name, source_type=source_type, enabled=entry.get("enabled", True) is True))
+        query = entry.get("query", "")
+        if not isinstance(query, str):
+            raise ValueError("source query must be a string")
+        result.append(SourceConfig(name=name, source_type=source_type, enabled=entry.get("enabled", True) is True, query=query))
     return result
