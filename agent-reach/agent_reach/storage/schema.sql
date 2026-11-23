@@ -15,3 +15,14 @@ CREATE TABLE IF NOT EXISTS research_items (
 );
 CREATE INDEX IF NOT EXISTS idx_research_retrieved
     ON research_items(retrieved_at DESC);
+
+CREATE TABLE IF NOT EXISTS collection_jobs (
+    job_id TEXT PRIMARY KEY,
+    source_name TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    finished_at TEXT NULL,
+    status TEXT NOT NULL,
+    items_seen INTEGER NOT NULL DEFAULT 0,
+    items_saved INTEGER NOT NULL DEFAULT 0,
+    error_summary TEXT NULL
+);
