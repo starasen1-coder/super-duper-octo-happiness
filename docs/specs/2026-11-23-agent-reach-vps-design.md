@@ -275,10 +275,11 @@ Role:
 Deployment:
 - Keep it outside the always-on Agent Reach worker and read-only API runtime.
 - Prefer a separate, manually invoked rendering environment or a separate isolated job/container.
-- Confirm actual VPS resources before enabling it: upstream documents a core dependency tier of roughly 350 MB, with additional voice/music/model assets increasing storage; some visual styles are GPU-intensive. Node.js, Python, a headless browser, and other dependencies may be required.
-- Do not install optional voice, music, HDRI, sample-library, or style dependencies unless a specific approved report needs them.
-- Preserve a text/HTML/PNG report path so the research system remains useful when video rendering is unavailable.
-- Respect per-file and per-asset licensing. The upstream README distinguishes MIT code from documentation/style material with separate licensing terms; do not copy or redistribute its documentation/styles into this repository without reviewing the applicable terms. Record third-party asset credits for generated media.
+- The reviewed upstream v2.0.0 README requires Node.js 20+, ffmpeg 7+, and Python 3.11+. Three styles require an external image-generation tool; the README does not state that a GPU is required.
+- The upstream project is a coding-agent skill, not a standalone service/API. This ChatGPT session and the research VPS do not provide a compatible LEMO runtime, so the first integration is a manual handoff manifest only; do not claim automated video rendering.
+- Do not install LEMO Opuscar on the always-on research VPS. If used, run it manually in a compatible coding-agent environment on curated, non-sensitive report inputs.
+- Preserve a text/HTML/PNG report path so the research system remains useful without LEMO.
+- Licensing at v2.0.0: code is MIT, documentation/style prompts are CC BY-NC 4.0, and demo films are CC BY 4.0. Do not bundle upstream styles, prompts, demos, sample libraries, or assets. Commercial use of CC BY-NC documentation/style prompts requires separate permission. Record applicable asset credits.
 
 ### 16.3 Combined workflow
 
@@ -289,7 +290,7 @@ The intended workflow is:
 3. If the item is an installable skill/MCP extension, pass it through SkillSpector and a human review before any installation.
 4. If the item is ordinary research content, validate provenance, date, relevance, and licensing before storing a bounded extract.
 5. Generate research records and reports through the existing validation pipeline.
-6. Optionally send a curated report to LEMO Opuscar for a visual explainer. The renderer cannot write back into the research database or change EA code/configuration.
+6. Optionally prepare a provenance manifest for a manual LEMO Opuscar handoff in a compatible coding-agent environment. This initial integration does not render video and cannot write back into the research database or change EA code/configuration.
 7. Keep all outputs read-only with respect to MT5 and broker systems.
 
 ### 16.4 Revised module boundaries
