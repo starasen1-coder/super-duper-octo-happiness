@@ -22,6 +22,17 @@
     "documentation_and_style_prompts_license": "CC-BY-NC-4.0",
     "commercial_use_of_documentation_and_style_prompts": "requires separate commercial permission",
     "tag_commit": "2ef41cca9a9330c96c00ec0d8d40807b4b062bb4",
-    "tag_signature_verified": false
+    "tag_signature_verified": false,
+    "security_review": {
+      "scanner": "NVIDIA SkillSpector",
+      "scanner_version": "2.13.6",
+      "date": "2026-11-23",
+      "decision": "block",
+      "findings": [
+        "TM2: HIGH at scripts/setup.sh:99",
+        "LP3: MEDIUM at SKILL.md:1"
+      ],
+      "reason": "HIGH finding blocks under fail-closed policy; human review required"
+    }
   }
 }
