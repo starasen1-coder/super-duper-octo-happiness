@@ -198,53 +198,54 @@ git add security/skillspector .github/workflows/skillspector-scan.yml
 git commit -m "feat: add SkillSpector pre-install gate"
 ```
 
-## Task 4: Optional LEMO Opuscar renderer, operational hardening, and documentation
+## Task 4: Optional LEMO Opuscar handoff manifest and operational documentation
 
 **Files:**
-- Create: `visual-reports/lemo-opuscar/README.md`
-- Create: `visual-reports/lemo-opuscar/render.py`
-- Create: `visual-reports/lemo-opuscar/tests/test_manifest.py`
+- Create: `visual-reports/lemo_opuscar/README.md`
+- Create: `visual-reports/lemo_opuscar/manifest.py`
+- Create: `visual-reports/lemo_opuscar/tests/test_manifest.py`
 - Create: `deploy/backup-research-db.sh`
 - Create: `deploy/README.md`
 - Modify: `docs/agent-reach-cloud.md`
 - Modify: `README.md`
 
 **Interfaces:**
-- Consumes: curated report manifest containing report ID, input file paths, renderer version, output destination, and asset-credit metadata.
-- Produces: optional rendered media plus a manifest recording input report ID, renderer version, output checksum, and applicable third-party asset credits.
-- Renderer runs manually or as a separately isolated job; it has no connector credentials, production secrets, database write access, or MT5 access.
+- Consumes: curated report ID, existing report files within a designated input root, pinned LEMO Opuscar version, asset credits, and intended use.
+- Produces: a provenance manifest with input report ID, renderer version, relative input paths, SHA-256 checksums, asset credits, and intended-use/license metadata.
+- This is a manual handoff manifest, not a video renderer. The upstream project is a coding-agent skill; the current ChatGPT/VPS runtime does not expose a compatible LEMO execution environment.
+- No connector credentials, production secrets, database write access, or MT5 access are passed to LEMO.
 
 - [ ] **Step 1: Add focused failing tests**
 
-Test that renderer input paths must remain inside the designated report-input directory; secret-like environment values are not forwarded; generated manifest records input report ID, renderer version and credits; renderer failure leaves the original report intact; text/HTML/PNG report generation does not depend on LEMO Opuscar being installed.
+Test that input paths must resolve inside the curated report directory; missing files and empty report IDs are rejected; manifest records report ID, renderer version, input hashes, intended use and credits; commercial use of CC BY-NC style documentation is rejected unless explicit permission is recorded.
 
 - [ ] **Step 2: Verify the relevant failure**
 
-Run: `python -m pytest visual-reports/lemo-opuscar/tests/test_manifest.py -q`
+Run: `PYTHONPATH=visual-reports python -m pytest visual-reports/lemo_opuscar/tests/test_manifest.py -q`
 
-Expected: tests fail because the renderer manifest contract does not yet exist.
+Expected: tests fail because the manifest module does not yet exist.
 
 - [ ] **Step 3: Implement the minimum behavior**
 
-Review LEMO Opuscar upstream version, dependencies, license boundaries, and resource needs before pinning. Keep code and style/documentation asset licenses distinct. Invoke the renderer only on curated, non-sensitive reports in a separate isolated runtime. Do not install optional voice/music/HDRI/model assets by default. Keep a non-video report path. Add database backup/restore instructions, log rotation, retention controls, source freshness reporting, firewall/network binding guidance, and operator instructions. Document that VPS deployment requires a separate explicit deployment authorization and secure out-of-band access provisioning.
+Review LEMO Opuscar v2.0.0. The upstream README requires Node.js 20+, ffmpeg 7+, and Python 3.11+; three styles require an external image-generation tool, and the README does not state a GPU requirement. The code is MIT, style documentation/prompts are CC BY-NC 4.0, and demo films are CC BY 4.0. Do not bundle upstream prompts, styles, demos, or assets. Do not install LEMO on the always-on VPS; provide a manual handoff only. Add database backup/restore instructions, log rotation, retention controls, source freshness reporting, firewall/network binding guidance, and operator instructions. Document that VPS deployment requires separate explicit authorization and secure out-of-band access provisioning.
 
 - [ ] **Step 4: Verify the focused pass**
 
-Run: `python -m pytest visual-reports/lemo-opuscar/tests/test_manifest.py -q`
+Run: `PYTHONPATH=visual-reports python -m pytest visual-reports/lemo_opuscar/tests/test_manifest.py -q`
 
-Expected: path isolation, metadata, failure preservation, and renderer-independent report tests pass.
+Expected: path isolation, metadata, checksum and license-gate tests pass.
 
 - [ ] **Step 5: Run the affected integration check**
 
-Run: `python -m pytest agent-reach/tests security/skillspector/tests visual-reports/lemo-opuscar/tests -q`
+Run: `PYTHONPATH=agent-reach python -m pytest agent-reach/tests -q`, `PYTHONPATH=. python -m pytest security/skillspector/tests -q`, and `PYTHONPATH=visual-reports python -m pytest visual-reports/lemo_opuscar/tests -q`.
 
-Expected: all research ingestion, API, scanner policy, and rendering adapter tests pass. Also run `docker compose -f deploy/docker-compose.yml config` and verify backup/restore on a disposable database.
+Expected: all research ingestion, API, scanner policy and handoff manifest tests pass. Also run `docker compose -f deploy/docker-compose.yml config`, build the API image, and verify backup/restore on a disposable database.
 
 - [ ] **Step 6: Commit the passing deliverable**
 
 ```bash
 git add visual-reports deploy docs/agent-reach-cloud.md README.md
-git commit -m "feat: add optional visual reports and VPS operations docs"
+git commit -m "feat: add optional LEMO handoff and VPS operations docs"
 ```
 
 ## Unresolved deployment decisions
