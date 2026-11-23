@@ -277,6 +277,7 @@ Deployment:
 - Prefer a separate, manually invoked rendering environment or a separate isolated job/container.
 - The reviewed upstream v2.0.0 README requires Node.js 20+, ffmpeg 7+, and Python 3.11+. Three styles require an external image-generation tool; the README does not state that a GPU is required.
 - The upstream project is a coding-agent skill, not a standalone service/API. This ChatGPT session and the research VPS do not provide a compatible LEMO runtime, so the first integration is a manual handoff manifest only; do not claim automated video rendering.
+- The pinned v2.0.0 skill was scanned with NVIDIA SkillSpector 2.13.6 (static, no LLM) and received a local policy decision of BLOCK because of one HIGH Tool Misuse finding (TM2) and one MEDIUM MCP Least Privilege finding (LP3). Do not install or execute it pending human review; see `security/reports/lemo-opuscar-v2.0.0-summary.md`.
 - Do not install LEMO Opuscar on the always-on research VPS. If used, run it manually in a compatible coding-agent environment on curated, non-sensitive report inputs.
 - Preserve a text/HTML/PNG report path so the research system remains useful without LEMO.
 - Licensing at v2.0.0: code is MIT, documentation/style prompts are CC BY-NC 4.0, and demo films are CC BY 4.0. Do not bundle upstream styles, prompts, demos, sample libraries, or assets. Commercial use of CC BY-NC documentation/style prompts requires separate permission. Record applicable asset credits.
