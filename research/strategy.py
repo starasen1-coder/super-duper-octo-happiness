@@ -1,6 +1,7 @@
 """Leakage-safe H1 structure + M5 liquidity sweep/impulse signal."""
 from __future__ import annotations
 import pandas as pd
+from .order_flow import order_flow_features, order_flow_confirmation
 import numpy as np
 
 def _atr(df: pd.DataFrame, period: int) -> pd.Series:
@@ -29,12 +30,16 @@ def build_signals(
     impulse_atr: float = 1.4,
     body_ratio_min: float = 0.65,
     h1_structure_lookback: int = 5,
+    order_flow_mode: str = "auto",
+    delta_z_min: float = 1.0,
 ) -> pd.DataFrame:
     if liquidity_lookback < 2 or structure_lookback < 2 or atr_period < 2:
         raise ValueError("lookbacks must be >= 2")
     x = m5.sort_values("time").copy()
     h = _h1_direction(h1, h1_structure_lookback)
     x = pd.merge_asof(x, h.sort_values("time"), on="time", direction="backward")
+    x = order_flow_features(x, mode=order_flow_mode)
+    x["flow_confirm"] = order_flow_confirmation(x, delta_z_min=delta_z_min)
     x["atr"] = _atr(x, atr_period)
     x["body_ratio"] = (x["close"] - x["open"]).abs() / (x["high"] - x["low"]).replace(0, np.nan)
     prior_high = x["high"].shift(1).rolling(liquidity_lookback, min_periods=liquidity_lookback).max()
@@ -47,8 +52,8 @@ def build_signals(
     prior_structure_low = x["low"].shift(1).rolling(structure_lookback, min_periods=structure_lookback).min()
     x["bull_confirm"] = x["close"] > prior_structure_high
     x["bear_confirm"] = x["close"] < prior_structure_low
-    x["h1_bull"] = x["h1_bull"].astype("boolean").fillna(False)\n    x["h1_bear"] = x["h1_bear"].astype("boolean").fillna(False)\n    x["raw_long"] = x["h1_bull"] & x["sweep_low"] & x["bull_impulse"] & x["bull_confirm"]
-    x["raw_short"] = x["h1_bear"] & x["sweep_high"] & x["bear_impulse"] & x["bear_confirm"]
+    x["h1_bull"] = x["h1_bull"].astype("boolean").fillna(False)\n    x["h1_bear"] = x["h1_bear"].astype("boolean").fillna(False)\n    x["raw_long"] = x["h1_bull"] & x["sweep_low"] & x["bull_impulse"] & x["bull_confirm"] & (x["flow_confirm"] == 1)
+    x["raw_short"] = x["h1_bear"] & x["sweep_high"] & x["bear_impulse"] & x["bear_confirm"] & (x["flow_confirm"] == -1)
     x["entry"] = (x["raw_long"] | x["raw_short"]).shift(1).fillna(False).astype(int)
     x["side"] = np.where(x["raw_long"].shift(1).fillna(False), 1, np.where(x["raw_short"].shift(1).fillna(False), -1, 0))
     return x
