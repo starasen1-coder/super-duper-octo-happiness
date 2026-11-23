@@ -3,7 +3,10 @@
     "version": "1.6.1",
     "asset": "agent-reach.zip",
     "url": "https://github.com/Panniantong/Agent-Reach/releases/download/v1.6.1/agent-reach.zip",
-    "sha256": "51443d733bcb26064262442083a8f8abf6ba5e3e7df54beebafe98c88be04a60"
+    "sha256": "51443d733bcb26064262442083a8f8abf6ba5e3e7df54beebafe98c88be04a60",
+    "wheel_asset": "agent_reach-1.6.1-py3-none-any.whl",
+    "wheel_url": "https://github.com/Panniantong/Agent-Reach/releases/download/v1.6.1/agent_reach-1.6.1-py3-none-any.whl",
+    "wheel_sha256": "6a1085cae53118c5f1271ab24041e55ec17c509932612b919208f04d10183acb"
   },
   "skillspector": {
     "version": "2.13.6",
