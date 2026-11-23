@@ -86,3 +86,19 @@ jobs:
           with sqlite3.connect(path) as connection:
               assert connection.execute("SELECT value FROM sample").fetchone()[0] == "backup-ok"
           PY
+      - name: Install and smoke-test pinned Agent Reach
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/Panniantong/Agent-Reach/releases/download/v1.6.1/agent_reach-1.6.1-py3-none-any.whl \
+            --output /tmp/agent_reach-1.6.1-py3-none-any.whl
+          echo "6a1085cae53118c5f1271ab24041e55ec17c509932612b919208f04d10183acb  /tmp/agent_reach-1.6.1-py3-none-any.whl" | sha256sum --check -
+          python -m venv /tmp/agent-reach-venv
+          /tmp/agent-reach-venv/bin/python -m pip install /tmp/agent_reach-1.6.1-py3-none-any.whl
+          /tmp/agent-reach-venv/bin/agent-reach version
+          /tmp/agent-reach-venv/bin/agent-reach channels > /tmp/agent-reach-channels.json
+          /tmp/agent-reach-venv/bin/python - <<'PY'
+          import json
+          payload = json.load(open("/tmp/agent-reach-channels.json", encoding="utf-8"))
+          assert payload.get("ok") is True
+          assert any(channel.get("name") == "github" for channel in payload.get("channels", []))
+          PY
