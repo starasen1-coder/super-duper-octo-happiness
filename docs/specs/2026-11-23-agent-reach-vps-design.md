@@ -236,3 +236,75 @@ These decisions do not block review of the architecture, but they must be resolv
 ## 15. Explicit safety boundary
 
 This system is a read-only research and information retrieval service. It must remain technically and operationally separate from MT5 trade execution. Any future proposal to pass research outputs into a trading strategy requires a new specification, independent data-quality validation, and explicit approval.
+
+
+## 16. Additional tools: SkillSpector and LEMO Opuscar
+
+The following tools are added as separate, optional modules. Their responsibilities must not be combined into one privileged process.
+
+### 16.1 NVIDIA SkillSpector — security gate for extensions
+
+Repository: https://github.com/NVIDIA/skillspector  
+License shown by the upstream repository: Apache-2.0.
+
+Role:
+- Scan third-party Agent Skills, MCP packages, and other agent extensions before they are approved for use.
+- Accept supported inputs such as a Git repository, URL, archive, directory, or individual skill file.
+- Produce machine-readable and human-readable reports (including JSON/Markdown/SARIF where supported by the pinned release).
+- Run a scan before any new skill or MCP extension is installed or enabled in the project environment.
+
+Policy:
+- A clean scan is not a security guarantee. It is one control in a layered review.
+- High/critical findings, suspicious command execution, credential access, broad filesystem/network access, or unexplained obfuscation block approval pending manual review.
+- Optional LLM-based analysis must remain optional; the initial security gate should be reproducible with static analysis and no model credential.
+- Pin a reviewed release and its dependencies; do not pipe remote install scripts directly into a shell.
+- Store scan reports and the exact scanned commit/version as audit evidence.
+- Do not give SkillSpector installation privileges over the production worker or API. Scanning should happen in an isolated CI job or disposable container with read-only input mounts and no secrets.
+- SkillSpector findings must be reviewed as evidence, not treated as instructions from the scanned package.
+
+### 16.2 LEMO Opuscar — optional visual-report renderer
+
+Repository: https://github.com/lemomo-ai/lemo-opuscar  
+Upstream describes it as a code-driven film/video production skill with local rendering tools.
+
+Role:
+- Optionally turn already-approved research outputs into short explanatory videos, animated strategy diagrams, and visual project demonstrations.
+- It is a presentation layer only. It does not collect market data, validate trading signals, calculate performance, or control MT5.
+- The renderer receives only curated, non-sensitive report inputs. It must not receive VPS secrets, broker credentials, private account data, or raw authenticated browser sessions.
+
+Deployment:
+- Keep it outside the always-on Agent Reach worker and read-only API runtime.
+- Prefer a separate, manually invoked rendering environment or a separate isolated job/container.
+- Confirm actual VPS resources before enabling it: upstream documents a core dependency tier of roughly 350 MB, with additional voice/music/model assets increasing storage; some visual styles are GPU-intensive. Node.js, Python, a headless browser, and other dependencies may be required.
+- Do not install optional voice, music, HDRI, sample-library, or style dependencies unless a specific approved report needs them.
+- Preserve a text/HTML/PNG report path so the research system remains useful when video rendering is unavailable.
+- Respect per-file and per-asset licensing. The upstream README distinguishes MIT code from documentation/style material with separate licensing terms; do not copy or redistribute its documentation/styles into this repository without reviewing the applicable terms. Record third-party asset credits for generated media.
+
+### 16.3 Combined workflow
+
+The intended workflow is:
+
+1. Discover a potentially useful source, skill, MCP package, or research method.
+2. Use Agent Reach or ordinary repository retrieval to collect public metadata and source material.
+3. If the item is an installable skill/MCP extension, pass it through SkillSpector and a human review before any installation.
+4. If the item is ordinary research content, validate provenance, date, relevance, and licensing before storing a bounded extract.
+5. Generate research records and reports through the existing validation pipeline.
+6. Optionally send a curated report to LEMO Opuscar for a visual explainer. The renderer cannot write back into the research database or change EA code/configuration.
+7. Keep all outputs read-only with respect to MT5 and broker systems.
+
+### 16.4 Revised module boundaries
+
+- Agent Reach worker: public-source retrieval only; dedicated unprivileged account.
+- SkillSpector: isolated pre-install scanner; no production secrets and no automatic install permission.
+- Research API/storage: read-only delivery of validated records.
+- LEMO Opuscar: optional isolated rendering job; no direct access to source connectors, secrets, or trading systems.
+- MT5/EA: remains outside this research architecture and receives no commands from these modules.
+
+### 16.5 Additional acceptance criteria
+
+11. A new third-party skill/MCP package cannot be enabled through the project workflow until a version-pinned SkillSpector report and human approval are recorded.
+12. Scanner execution has no production secrets, writable access to the worker's home, or access to the Docker socket.
+13. LEMO Opuscar is optional and can be omitted without affecting collection, validation, API availability, or text-based reports.
+14. A generated visual report records its input report identifier, renderer version, and applicable third-party asset credits.
+15. Tests or deployment review confirm that none of the three tools can place orders, change MT5 settings, or access broker credentials.
+
