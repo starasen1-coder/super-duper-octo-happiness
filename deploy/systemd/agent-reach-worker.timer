@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodic Agent Reach public research collection
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=6h
+RandomizedDelaySec=10min
+Persistent=true
+Unit=agent-reach-worker.service
+
+[Install]
+WantedBy=timers.target
