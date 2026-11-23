@@ -30,7 +30,8 @@ def create_app(
     database_path: str | None = None,
 ) -> FastAPI:
     repo = repository or ResearchRepository(
-        database_path or os.getenv("AGENT_REACH_DB", "/data/research.sqlite3")
+        database_path or os.getenv("AGENT_REACH_DB", "/data/research.sqlite3"),
+        readonly=True,
     )
     token = api_token if api_token is not None else os.getenv("AGENT_REACH_API_TOKEN", "")
     app = FastAPI(title="Agent Reach Research API", version="1.0.0", docs_url=None, redoc_url=None)
