@@ -44,7 +44,7 @@ def backtest_long(bars: pd.DataFrame, entry_index: int, spec: TradeSpec) -> Trad
             exit_price = sl - spec.slippage
             return TradeResult(entry_index, i, "sl", entry, exit_price, exit_price - entry)
         if hit_tp:
-            exit_price = tp - spec.slippage
+            exit_price = tp - bar_spread / 2.0 - spec.slippage
             return TradeResult(entry_index, i, "tp", entry, exit_price, exit_price - entry)
     last = bars.iloc[-1]
     exit_price = float(last["close"]) - float(last["spread"]) / 2.0 - spec.slippage
