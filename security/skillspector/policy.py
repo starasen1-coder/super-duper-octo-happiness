@@ -29,7 +29,8 @@ def evaluate_report(report: object) -> tuple[str, list[str]]:
     observed = set(severities + [max_severity])
 
     if "CRITICAL" in observed or "HIGH" in observed or recommendation == "DO_NOT_INSTALL":
-        return "block", [f"high-risk finding or blocking recommendation: {recommendation}/{max_severity}"]
+        highest = "CRITICAL" if "CRITICAL" in observed else "HIGH" if "HIGH" in observed else max_severity
+        return "block", [f"high-risk finding or blocking recommendation: {recommendation}/{highest}"]
     if recommendation == "CAUTION" or "MEDIUM" in observed:
         return "review", ["medium-risk result requires human review"]
     if recommendation != "SAFE":
