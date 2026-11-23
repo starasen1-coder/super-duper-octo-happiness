@@ -5,7 +5,7 @@ import hmac
 import ipaddress
 import os
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from agent_reach.storage.repository import ResearchRepository
@@ -20,7 +20,7 @@ def _is_loopback(host: str | None) -> bool:
     try:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:
-        return host in {"localhost", "testclient"}
+        return host == "localhost"
 
 
 def create_app(
@@ -57,8 +57,8 @@ def create_app(
 
     @app.get("/v1/items", dependencies=[Depends(require_auth)])
     def get_items(
-        limit: int = 50,
-        offset: int = 0,
+        limit: int = Query(50, ge=1, le=200),
+        offset: int = Query(0, ge=0),
         source: str | None = None,
         status: str | None = None,
     ):
