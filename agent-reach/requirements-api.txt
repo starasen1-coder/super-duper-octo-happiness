@@ -1,1 +1,5 @@
-fastapi==0.115.12\npydantic==2.11.3\nuvicorn[standard]==0.34.2\npytest==8.3.5\nhttpx==0.28.1\n
+fastapi==0.115.12
+pydantic==2.11.3
+uvicorn[standard]==0.34.2
+pytest==8.3.5
+httpx==0.28.1
