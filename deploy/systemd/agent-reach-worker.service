@@ -11,6 +11,7 @@ WorkingDirectory=/opt/agent-reach/app
 Environment=PYTHONPATH=/opt/agent-reach/app/agent-reach
 Environment=PATH=/home/agent-reach/.local/bin:/usr/local/bin:/usr/bin
 Environment=AGENT_REACH_DB=/var/lib/agent-reach/research.sqlite3
+UnsetEnvironment=GH_TOKEN GITHUB_TOKEN
 ExecStart=/opt/agent-reach/venv/bin/python -m agent_reach.worker.cli collect --config /etc/agent-reach/sources.json --db /var/lib/agent-reach/research.sqlite3
 TimeoutStartSec=180
 UMask=0077
