@@ -52,6 +52,8 @@ jobs:
       - name: Install pinned SkillSpector
         run: python -m pip install /tmp/skillspector-2.13.6-py3-none-any.whl
       - name: Run static scan against benign fixture
+        env:
+          PYTHONPATH: .
         run: |
           python security/skillspector/scan.py \
             --target security/skillspector/fixtures/benign-skill \
