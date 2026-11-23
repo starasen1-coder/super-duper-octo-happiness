@@ -2,6 +2,14 @@
 
 LEMO Opuscar is a code-driven film-making skill for compatible coding agents. It is not a data collector, research validator, MT5 component, or autonomous market-analysis engine.
 
+## Security status
+
+<badge>BLOCKED — manual review required</badge>
+
+A static SkillSpector v2.13.6 scan of the pinned upstream skill at commit `2ef41cca9a9330c96c00ec0d8d40807b4b062bb4` returned policy decision **block**: one HIGH Tool Misuse finding (TM2) in `scripts/setup.sh:99` and one MEDIUM MCP Least Privilege finding (LP3) in `SKILL.md:1`. The aggregate recommendation was CAUTION, but the local policy blocks any HIGH finding. This is not a claim that the project is malicious; it means it has not passed this project's pre-use gate.
+
+Do not install, execute, or invoke the upstream skill until a human has reviewed the exact findings, source and required permissions. The report artifact is retained in the GitHub Actions run for 14 days. The repository integration remains a manifest-only handoff and does not execute LEMO.
+
 ## Compatibility and license
 
 Reviewed upstream release: **v2.0.0**, pinned to commit `2ef41cca9a9330c96c00ec0d8d40807b4b062bb4`. The upstream tag is unsigned; the exact commit is recorded in `security/tool-versions.json`. A SkillSpector static scan is run in CI and its report is retained for manual review before any use.
