@@ -22,4 +22,15 @@ with sqlite3.connect(source) as src, sqlite3.connect(destination) as dst:
     src.backup(dst)
 PY
 chmod 600 "$DEST"
+
+KEEP="${AGENT_REACH_BACKUP_KEEP:-14}"
+if ! [[ "$KEEP" =~ ^[1-9][0-9]*$ ]]; then
+  echo "AGENT_REACH_BACKUP_KEEP must be a positive integer" >&2
+  exit 1
+fi
+mapfile -t OLD_BACKUPS < <(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'research-*.sqlite3' -printf '%f\n' | sort -r | tail -n +"$((KEEP + 1))")
+for name in "${OLD_BACKUPS[@]}"; do
+  rm -f -- "$BACKUP_DIR/$name"
+done
+
 echo "$DEST"
