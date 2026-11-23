@@ -44,11 +44,27 @@ jobs:
             --revision "$GITHUB_SHA" \
             --scanner-version 2.13.6 \
             --output-dir /tmp/skillspector-report
+      - name: Fetch pinned LEMO Opuscar source for static review
+        run: |
+          git clone --no-checkout https://github.com/lemomo-ai/lemo-opuscar.git /tmp/lemo-opuscar
+          git -C /tmp/lemo-opuscar checkout --detach 2ef41cca9a9330c96c00ec0d8d40807b4b062bb4
+      - name: Scan LEMO Opuscar skill without LLM
+        continue-on-error: true
+        env:
+          PYTHONPATH: .
+        run: |
+          python security/skillspector/scan.py \
+            --target /tmp/lemo-opuscar/plugin/skills/lemo-opuscar \
+            --revision 2ef41cca9a9330c96c00ec0d8d40807b4b062bb4 \
+            --scanner-version 2.13.6 \
+            --output-dir /tmp/lemo-skillspector-report
       - name: Preserve scanner evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: skillspector-report
-          path: /tmp/skillspector-report/
+          name: skillspector-upstream-reports
+          path: |
+            /tmp/skillspector-report/
+            /tmp/lemo-skillspector-report/
           if-no-files-found: warn
           retention-days: 14
