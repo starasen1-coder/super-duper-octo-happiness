@@ -23,7 +23,7 @@ jobs:
           cache: "pip"
           cache-dependency-path: agent-reach/requirements-test.txt
       - name: Install test dependency
-        run: python -m pip install -r agent-reach/requirements-test.txt
+        run: python -m pip install -r agent-reach/requirements-api.txt -r agent-reach/requirements-test.txt
       - name: Run research tests
         env:
           PYTHONPATH: agent-reach
