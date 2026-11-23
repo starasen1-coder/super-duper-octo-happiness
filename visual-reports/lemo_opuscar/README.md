@@ -4,7 +4,7 @@ LEMO Opuscar is a code-driven film-making skill for compatible coding agents. It
 
 ## Compatibility and license
 
-Reviewed upstream release: **v2.0.0**.
+Reviewed upstream release: **v2.0.0**, pinned to commit `2ef41cca9a9330c96c00ec0d8d40807b4b062bb4`. The upstream tag is unsigned; the exact commit is recorded in `security/tool-versions.json`. A SkillSpector static scan is run in CI and its report is retained for manual review before any use.
 
 - The upstream README requires Node.js 20+, ffmpeg 7+, and Python 3.11+.
 - Three styles require an external image-generation tool; the README does not state that a GPU is required.
