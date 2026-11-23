@@ -76,3 +76,11 @@ def test_github_search_drops_non_github_result_urls(monkeypatch):
 
     assert len(records) == 1
     assert records[0]["source_url"] == "https://github.com/org/repo"
+
+def test_cli_rejects_output_over_configured_limit(monkeypatch):
+    def fake_run(command, **kwargs):
+        return subprocess.CompletedProcess(command, 0, "12345", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    with pytest.raises(RuntimeError, match="output limit"):
+        AgentReachCLI(max_output_chars=4).run(["--help"])
