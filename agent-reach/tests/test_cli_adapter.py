@@ -30,3 +30,25 @@ def test_cli_rejects_empty_or_shell_style_arguments():
 
     with pytest.raises(ValueError, match="shell"):
         cli.run(["--shell", "rm -rf /"])
+
+def test_github_search_forces_public_api_and_parses_json(monkeypatch):
+    from agent_reach.worker.adapters.agent_reach_cli import CommandResult
+
+    seen = {}
+
+    def fake_run(self, arguments):
+        seen["arguments"] = list(arguments)
+        return CommandResult(
+            0,
+            '{"schema_version":1,"ok":true,"channel":"github","action":"search","items":[{"title":"org/repo","url":"https://github.com/org/repo","text":"Public summary","published_at":null,"raw":{}}]}',
+            "",
+        )
+
+    monkeypatch.setattr(AgentReachCLI, "run", fake_run)
+    result = AgentReachCLI().search_github("market microstructure", limit=3)
+
+    assert seen["arguments"] == [
+        "github", "search", "market microstructure", "--limit", "3", "--backend", "github-api"
+    ]
+    assert result[0]["source_url"] == "https://github.com/org/repo"
+    assert result[0]["content_text"] == "Public summary"
