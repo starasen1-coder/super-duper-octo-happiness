@@ -55,7 +55,8 @@ def test_collection_retries_one_transient_timeout(tmp_path, monkeypatch):
                 raise TimeoutError("temporary timeout")
             return FakeCLI().search_github(query, limit=limit)
 
-    monkeypatch.setattr("agent_reach.worker.runner.time.sleep", lambda seconds: None)
+    import agent_reach.worker.runner as runner
+    monkeypatch.setattr(runner.time, "sleep", lambda seconds: None)
     repository = ResearchRepository(tmp_path / "research.sqlite3")
     cli = FlakyCLI()
 
