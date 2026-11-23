@@ -14,3 +14,5 @@ The scanner is installed and run only in an isolated CI job. It receives no prod
 6. Do not install a package solely because its scanner report says `pass`.
 
 The CI workflow scans only the harmless fixture in this repository. It demonstrates the scanner and policy integration; it does not approve any third-party skill.
+
+The scanner wrapper and policy are Python modules under the `security.skillspector` package. The CI workflow verifies the wheel digest before installation and runs the scanner with no LLM provider credentials.
