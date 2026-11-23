@@ -46,10 +46,10 @@ jobs:
         run: |
           curl --fail --location --silent --show-error \
             https://github.com/NVIDIA/SkillSpector/releases/download/v2.13.6/skillspector-2.13.6-py3-none-any.whl \
-            --output /tmp/skillspector.whl
-          echo "e7b46c55e726405b2a068d375d1ee8e799e15d86f3fc05f84feb5ba962198b15  /tmp/skillspector.whl" | sha256sum --check -
+            --output /tmp/skillspector-2.13.6-py3-none-any.whl
+          echo "e7b46c55e726405b2a068d375d1ee8e799e15d86f3fc05f84feb5ba962198b15  /tmp/skillspector-2.13.6-py3-none-any.whl" | sha256sum --check -
       - name: Install pinned SkillSpector
-        run: python -m pip install /tmp/skillspector.whl
+        run: python -m pip install /tmp/skillspector-2.13.6-py3-none-any.whl
       - name: Run static scan against benign fixture
         run: |
           python security/skillspector/scan.py \
