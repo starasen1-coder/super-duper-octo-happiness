@@ -156,15 +156,27 @@ class ResearchRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def list_items(self, *, limit: int = 50, offset: int = 0) -> ItemPage:
+    def list_items(
+        self, *, limit: int = 50, offset: int = 0,
+        source: str | None = None, status: str | None = None,
+    ) -> ItemPage:
         if not 1 <= limit <= 200:
             raise ValueError("limit must be between 1 and 200")
         if offset < 0:
             raise ValueError("offset must be non-negative")
+        clauses = []
+        params = []
+        if source:
+            clauses.append("source_name = ?")
+            params.append(source)
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         with self._connect() as connection:
-            total = int(connection.execute("SELECT COUNT(*) FROM research_items").fetchone()[0])
+            total = int(connection.execute("SELECT COUNT(*) FROM research_items" + where, params).fetchone()[0])
             rows = connection.execute(
-                "SELECT * FROM research_items ORDER BY retrieved_at DESC, id ASC LIMIT ? OFFSET ?",
-                (limit, offset),
+                "SELECT * FROM research_items" + where + " ORDER BY retrieved_at DESC, id ASC LIMIT ? OFFSET ?",
+                [*params, limit, offset],
             ).fetchall()
         return ItemPage(items=[self._to_item(row) for row in rows], total=total)
