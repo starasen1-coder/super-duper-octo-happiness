@@ -24,11 +24,11 @@ Use an Ubuntu LTS VPS with a dedicated non-root account, Docker Engine + Compose
 6. Run `agent-reach version` and `agent-reach channels`. Do not run setup for optional or experimental channels.
 7. Copy `agent-reach/config/sources.example.json` to `/etc/agent-reach/sources.json` and review each source/query. Only the public GitHub API backend is enabled by the worker. Do not add logged-in sources, cookies, session directories, or API keys.
 8. Install the systemd unit files from `deploy/systemd`, then run one controlled worker invocation and inspect its JSON output and logs before enabling the timer.
-9. Confirm that `/var/lib/agent-reach/research.sqlite3` exists and is readable by the API container's numeric UID 10001. The API container must never have write access to this directory.
+9. Confirm that `/var/lib/agent-reach/research.sqlite3` exists and is readable by the API container's numeric UID 10001. The API container must never have write access to this directory. Set `AGENT_REACH_API_GID` to the numeric GID of the host `agent-reach` group so the API process can read group-readable files. The worker service uses `UMask=0027`; keep the data directory group-owned by `agent-reach`, mode 0750, and the database mode 0640.
 
 ## API start
 
-Set `AGENT_REACH_API_TOKEN` in the host environment or an operator-managed environment file outside the repository. Use a long random token and restrictive file permissions. Set `AGENT_REACH_DATA_DIR=/var/lib/agent-reach`.
+Set `AGENT_REACH_API_TOKEN` in the host environment or an operator-managed environment file outside the repository. Also set `AGENT_REACH_API_GID` to the numeric GID of the host `agent-reach` group. Use a long random token and restrictive file permissions. Set `AGENT_REACH_DATA_DIR=/var/lib/agent-reach`.
 
 From the repository root:
 
