@@ -1,4 +1,4 @@
-"""Bounded subprocess adapter. Only fixed, reviewed CLI argument arrays are accepted."""
+"""Timeout-limited subprocess adapter with output-size checks and no shell execution."""
 from __future__ import annotations
 
 import subprocess
@@ -33,10 +33,13 @@ class AgentReachCLI:
             timeout=self.timeout_seconds,
             shell=False,
         )
+        stderr_limit = min(self.max_output_chars, 4_000)
+        if len(completed.stdout) > self.max_output_chars or len(completed.stderr) > stderr_limit:
+            raise RuntimeError("Agent Reach output limit exceeded")
         return CommandResult(
             returncode=completed.returncode,
-            stdout=completed.stdout[: self.max_output_chars],
-            stderr=completed.stderr[: min(self.max_output_chars, 4_000)],
+            stdout=completed.stdout,
+            stderr=completed.stderr,
         )
 
     def search_github(self, query: str, *, limit: int = 5) -> list[dict]:
