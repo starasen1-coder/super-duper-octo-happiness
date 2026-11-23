@@ -7,6 +7,7 @@ on:
       - "agent-reach/**"
       - "security/skillspector/**"
       - "security/tool-versions.json"
+      - "visual-reports/**"
       - ".github/workflows/agent-reach-tests.yml"
   workflow_dispatch:
 
@@ -57,3 +58,7 @@ jobs:
             --revision "$GITHUB_SHA" \
             --scanner-version 2.13.6 \
             --output-dir /tmp/skillspector-report
+      - name: Test optional LEMO handoff manifest
+        env:
+          PYTHONPATH: visual-reports
+        run: python -m pytest visual-reports/lemo_opuscar/tests -q
