@@ -159,6 +159,7 @@ class ResearchRepository:
     def list_items(
         self, *, limit: int = 50, offset: int = 0,
         source: str | None = None, status: str | None = None,
+        from_date: str | None = None, to_date: str | None = None,
     ) -> ItemPage:
         if not 1 <= limit <= 200:
             raise ValueError("limit must be between 1 and 200")
@@ -172,6 +173,12 @@ class ResearchRepository:
         if status:
             clauses.append("status = ?")
             params.append(status)
+        if from_date:
+            clauses.append("retrieved_at >= ?")
+            params.append(from_date)
+        if to_date:
+            clauses.append("retrieved_at <= ?")
+            params.append(to_date)
         where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         with self._connect() as connection:
             total = int(connection.execute("SELECT COUNT(*) FROM research_items" + where, params).fetchone()[0])
