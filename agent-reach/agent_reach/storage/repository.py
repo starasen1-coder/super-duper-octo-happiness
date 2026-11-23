@@ -22,16 +22,30 @@ class ItemPage:
 
 
 class ResearchRepository:
-    def __init__(self, database_path: str | Path):
+    def __init__(self, database_path: str | Path, *, readonly: bool = False):
         self.database_path = str(database_path)
+        self.readonly = readonly
         if self.database_path != ":memory:":
-            Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
-        self._initialize()
+            path = Path(self.database_path)
+            if readonly and not path.is_file():
+                raise FileNotFoundError(f"read-only research database does not exist: {path}")
+            if not readonly:
+                path.parent.mkdir(parents=True, exist_ok=True)
+        if not readonly:
+            self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path, timeout=10)
+        if self.readonly:
+            uri = Path(self.database_path).resolve().as_uri() + "?mode=ro"
+            connection = sqlite3.connect(uri, timeout=10, uri=True)
+        else:
+            connection = sqlite3.connect(self.database_path, timeout=10)
         connection.row_factory = sqlite3.Row
         return connection
+
+    def _ensure_writable(self) -> None:
+        if self.readonly:
+            raise PermissionError("research repository is read-only")
 
     def _initialize(self) -> None:
         with self._connect() as connection:
@@ -73,6 +87,7 @@ class ResearchRepository:
             )
 
     def insert_items(self, items: Sequence[ResearchItem]) -> IngestResult:
+        self._ensure_writable()
         inserted = 0
         duplicates = 0
         with self._connect() as connection:
@@ -114,6 +129,7 @@ class ResearchRepository:
         return self._to_item(row) if row else None
 
     def create_job(self, job_id: str, source_name: str, *, started_at: str) -> None:
+        self._ensure_writable()
         with self._connect() as connection:
             connection.execute(
                 "INSERT INTO collection_jobs (job_id, source_name, started_at, status) VALUES (?, ?, ?, ?)",
@@ -130,6 +146,7 @@ class ResearchRepository:
         items_saved: int,
         error_summary: str | None,
     ) -> None:
+        self._ensure_writable()
         if status not in {"completed", "partial", "failed"}:
             raise ValueError("invalid job status")
         if items_seen < 0 or items_saved < 0 or items_saved > items_seen:
