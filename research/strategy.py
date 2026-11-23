@@ -47,8 +47,8 @@ def build_signals(
     prior_structure_low = x["low"].shift(1).rolling(structure_lookback, min_periods=structure_lookback).min()
     x["bull_confirm"] = x["close"] > prior_structure_high
     x["bear_confirm"] = x["close"] < prior_structure_low
-    x["raw_long"] = x["h1_bull"].fillna(False) & x["sweep_low"] & x["bull_impulse"] & x["bull_confirm"]
-    x["raw_short"] = x["h1_bear"].fillna(False) & x["sweep_high"] & x["bear_impulse"] & x["bear_confirm"]
+    x["h1_bull"] = x["h1_bull"].astype("boolean").fillna(False)\n    x["h1_bear"] = x["h1_bear"].astype("boolean").fillna(False)\n    x["raw_long"] = x["h1_bull"] & x["sweep_low"] & x["bull_impulse"] & x["bull_confirm"]
+    x["raw_short"] = x["h1_bear"] & x["sweep_high"] & x["bear_impulse"] & x["bear_confirm"]
     x["entry"] = (x["raw_long"] | x["raw_short"]).shift(1).fillna(False).astype(int)
     x["side"] = np.where(x["raw_long"].shift(1).fillna(False), 1, np.where(x["raw_short"].shift(1).fillna(False), -1, 0))
     return x
