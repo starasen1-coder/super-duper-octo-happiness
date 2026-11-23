@@ -75,7 +75,7 @@ def create_app(
         return items.get_item(item_id, repository=repo)
 
     @app.get("/v1/jobs", dependencies=[Depends(require_auth)])
-    def get_jobs(limit: int = 50):
+    def get_jobs(limit: int = Query(50, ge=1, le=200)):
         return jobs.list_jobs(limit=limit, repository=repo)
 
     return app
