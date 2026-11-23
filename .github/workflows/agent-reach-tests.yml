@@ -34,3 +34,5 @@ jobs:
           AGENT_REACH_API_TOKEN: ci-only-placeholder
           AGENT_REACH_DATA_DIR: /tmp/research-data
         run: docker compose -f deploy/docker-compose.yml config --quiet
+      - name: Build read-only API image
+        run: docker build -f deploy/Dockerfile -t agent-reach-research-api:ci .
