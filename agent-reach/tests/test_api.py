@@ -54,3 +54,16 @@ def test_api_returns_404_for_unknown_item_and_422_for_invalid_page(tmp_path):
 
     assert client.get("/v1/items/missing", headers=headers).status_code == 404
     assert client.get("/v1/items?limit=0", headers=headers).status_code == 422
+
+def test_default_api_opens_existing_database_read_only(tmp_path):
+    repository, item = seeded_repository(tmp_path)
+    database_path = repository.database_path
+    client = TestClient(create_app(database_path=database_path, api_token="test-token"))
+
+    response = client.get(
+        f"/v1/items/{item.id}",
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == item.id
