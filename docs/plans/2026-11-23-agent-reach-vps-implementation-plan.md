@@ -212,18 +212,16 @@ git commit -m "feat: add SkillSpector pre-install gate"
 **Interfaces:**
 - Consumes: curated report ID, existing report files within a designated input root, pinned LEMO Opuscar version, asset credits, and intended use.
 - Produces: a provenance manifest with input report ID, renderer version, relative input paths, SHA-256 checksums, asset credits, and intended-use/license metadata.
-- This is a manual handoff manifest, not a video renderer. The upstream project is a coding-agent skill; the current ChatGPT/VPS runtime does not expose a compatible LEMO execution environment.
+- This is a manual handoff manifest, not a video renderer. The upstream project is a coding-agent skill; the current ChatGPT/VPS runtime does not expose a compatible LEMO execution environment. The pinned upstream skill was statically scanned; the local policy blocked it (TM2 HIGH, LP3 MEDIUM). Do not install or execute it pending human review.
 - No connector credentials, production secrets, database write access, or MT5 access are passed to LEMO.
 
 - [x] **Step 1: Add focused failing tests**
 
-Test that input paths must resolve inside the curated report directory; missing files and empty report IDs are rejected; manifest records report ID, renderer version, input hashes, intended use and credits; commercial use of CC BY-NC style documentation is rejected unless explicit permission is recorded.
+Test that input paths must resolve inside the curated report directory; empty report IDs are rejected; manifest records report ID, renderer version, input hashes, intended use and credits; commercial use of CC BY-NC style documentation is rejected unless explicit permission is recorded.
 
-- [x] **Step 2: Verify the relevant failure**
+- [ ] **Step 2: Verify the relevant failure**
 
-Run: `PYTHONPATH=visual-reports python -m pytest visual-reports/lemo_opuscar/tests/test_manifest.py -q`
-
-Expected: tests fail because the manifest module does not yet exist.
+The test files were committed before the manifest module, but the CI workflow did not run at that intermediate commit. The initial red result was therefore not observed; the green test run was verified after implementation. Do not treat this task as a fully recorded red-green cycle.
 
 - [x] **Step 3: Implement the minimum behavior**
 
