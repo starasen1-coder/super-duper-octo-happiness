@@ -57,6 +57,20 @@ class ResearchRepository:
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_research_retrieved ON research_items(retrieved_at DESC)"
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS collection_jobs (
+                    job_id TEXT PRIMARY KEY,
+                    source_name TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT NULL,
+                    status TEXT NOT NULL,
+                    items_seen INTEGER NOT NULL DEFAULT 0,
+                    items_saved INTEGER NOT NULL DEFAULT 0,
+                    error_summary TEXT NULL
+                )
+                """
+            )
 
     def insert_items(self, items: Sequence[ResearchItem]) -> IngestResult:
         inserted = 0
@@ -98,6 +112,49 @@ class ResearchRepository:
                 "SELECT * FROM research_items WHERE id = ?", (item_id,)
             ).fetchone()
         return self._to_item(row) if row else None
+
+    def create_job(self, job_id: str, source_name: str, *, started_at: str) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT INTO collection_jobs (job_id, source_name, started_at, status) VALUES (?, ?, ?, ?)",
+                (job_id, source_name, started_at, "running"),
+            )
+
+    def finish_job(
+        self,
+        job_id: str,
+        *,
+        status: str,
+        finished_at: str,
+        items_seen: int,
+        items_saved: int,
+        error_summary: str | None,
+    ) -> None:
+        if status not in {"completed", "partial", "failed"}:
+            raise ValueError("invalid job status")
+        if items_seen < 0 or items_saved < 0 or items_saved > items_seen:
+            raise ValueError("job item counts are invalid")
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE collection_jobs
+                SET finished_at = ?, status = ?, items_seen = ?, items_saved = ?, error_summary = ?
+                WHERE job_id = ?
+                """,
+                (finished_at, status, items_seen, items_saved, (error_summary or "")[:500], job_id),
+            )
+            if cursor.rowcount != 1:
+                raise KeyError(f"unknown job_id: {job_id}")
+
+    def list_jobs(self, *, limit: int = 50) -> list[dict]:
+        if not 1 <= limit <= 200:
+            raise ValueError("limit must be between 1 and 200")
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM collection_jobs ORDER BY started_at DESC, job_id ASC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def list_items(self, *, limit: int = 50, offset: int = 0) -> ItemPage:
         if not 1 <= limit <= 200:
