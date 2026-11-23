@@ -1,0 +1,27 @@
+# Fail-closed policy for the pinned NVIDIA SkillSpector JSON report.
+# This policy is a pre-install review gate, not a proof of safety.
+scanner:
+  version: "2.13.6"
+  llm_analysis: false
+  fail_on_incomplete: true
+decision:
+  pass:
+    - execution_successful is true
+    - analysis_completeness.is_complete is true
+    - risk_assessment.recommendation is SAFE
+    - no issue has severity HIGH or CRITICAL
+  review:
+    - risk_assessment.recommendation is CAUTION
+    - any issue has severity MEDIUM
+  block:
+    - scanner exits non-zero
+    - report missing or malformed
+    - target revision is not a verified 40-character Git commit
+    - scanner version differs from the pinned version
+    - execution_successful is false
+    - analysis is incomplete
+    - recommendation is DO_NOT_INSTALL
+    - any issue has severity HIGH or CRITICAL
+approval:
+  automatic_install: false
+  human_approval_required: true
