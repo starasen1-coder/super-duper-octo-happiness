@@ -1,0 +1,27 @@
+services:
+  research-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: agent-reach-research-api:local
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    environment:
+      AGENT_REACH_DB: /data/research.sqlite3
+      AGENT_REACH_API_TOKEN: ${AGENT_REACH_API_TOKEN:?Set AGENT_REACH_API_TOKEN outside the repository}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ${AGENT_REACH_DATA_DIR:-/var/lib/agent-reach}:/data:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
