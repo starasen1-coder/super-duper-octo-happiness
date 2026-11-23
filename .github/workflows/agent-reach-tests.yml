@@ -67,3 +67,22 @@ jobs:
         env:
           PYTHONPATH: visual-reports
         run: python -m pytest visual-reports/lemo_opuscar/tests -q
+      - name: Verify SQLite backup script
+        run: |
+          python - <<'PY'
+          import sqlite3
+          db = "/tmp/research-backup-source.sqlite3"
+          with sqlite3.connect(db) as connection:
+              connection.execute("CREATE TABLE sample (value TEXT)")
+              connection.execute("INSERT INTO sample VALUES ('backup-ok')")
+          PY
+          AGENT_REACH_DB=/tmp/research-backup-source.sqlite3 \
+            AGENT_REACH_BACKUP_DIR=/tmp/research-backups \
+            bash deploy/backup-research-db.sh
+          python - <<'PY'
+          import glob
+          import sqlite3
+          path = glob.glob("/tmp/research-backups/*.sqlite3")[0]
+          with sqlite3.connect(path) as connection:
+              assert connection.execute("SELECT value FROM sample").fetchone()[0] == "backup-ok"
+          PY
