@@ -20,6 +20,8 @@
     "repository": "https://github.com/lemomo-ai/lemo-opuscar",
     "code_license": "MIT",
     "documentation_and_style_prompts_license": "CC-BY-NC-4.0",
-    "commercial_use_of_documentation_and_style_prompts": "requires separate commercial permission"
+    "commercial_use_of_documentation_and_style_prompts": "requires separate commercial permission",
+    "tag_commit": "2ef41cca9a9330c96c00ec0d8d40807b4b062bb4",
+    "tag_signature_verified": false
   }
 }
