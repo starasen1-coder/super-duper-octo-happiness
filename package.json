@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "description": "Reproducible XAUUSD M5 research data tooling",
-  "scripts": {"data:xauusd:m5": "node scripts/download_xauusd_m5.mjs"},
+  "scripts": {
+    "data:xauusd:m5": "node scripts/download_xauusd_m5.mjs",
+    "data:xauusd:ticks": "node scripts/download_xauusd_ticks.mjs"
+  },
   "dependencies": {"dukascopy-node": "^1.2.0"}
 }
