@@ -37,3 +37,43 @@ class AgentReachCLI:
             stdout=completed.stdout[: self.max_output_chars],
             stderr=completed.stderr[: min(self.max_output_chars, 4_000)],
         )
+
+    def search_github(self, query: str, *, limit: int = 5) -> list[dict]:
+        """Search public GitHub through Agent Reach's unauthenticated REST backend."""
+        import json
+
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("query is required")
+        if not 1 <= limit <= 20:
+            raise ValueError("limit must be between 1 and 20")
+        result = self.run([
+            "github", "search", query.strip(), "--limit", str(limit), "--backend", "github-api"
+        ])
+        if result.returncode != 0:
+            raise RuntimeError(f"Agent Reach exited with status {result.returncode}")
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            raise ValueError("Agent Reach returned invalid JSON") from exc
+        if payload.get("ok") is not True:
+            error = payload.get("error") or {}
+            raise RuntimeError(f"Agent Reach {error.get('code', 'ERROR')}: {error.get('message', 'request failed')}")
+        if payload.get("channel") != "github" or payload.get("action") != "search":
+            raise ValueError("Agent Reach response does not match the requested GitHub search")
+        records = []
+        for item in payload.get("items", []):
+            if not isinstance(item, dict) or not item.get("url"):
+                continue
+            raw = item.get("raw") if isinstance(item.get("raw"), dict) else {}
+            content = item.get("text") or raw.get("description") or item.get("title") or ""
+            if not str(content).strip():
+                continue
+            records.append({
+                "source_name": "agent-reach-github",
+                "source_type": "github",
+                "source_url": item["url"],
+                "title": item.get("title") or "GitHub result",
+                "published_at": item.get("published_at"),
+                "content_text": str(content),
+            })
+        return records
