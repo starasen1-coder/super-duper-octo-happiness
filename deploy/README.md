@@ -58,3 +58,13 @@ Review `/etc/agent-reach/sources.json` before enabling `agent-reach-worker.timer
 The API only reads stored records. The worker can invoke only configured Agent Reach channel/action pairs. The worker does not expose a shell endpoint, arbitrary URL fetch, browser session import, authenticated channel, broker credential, MT5 endpoint, or order execution capability. Do not connect this service to the existing `proxy_server.py` or `LLM_Advisor.mq5` path.
 
 VPS deployment is not automatic. It requires operator-provisioned server access and a separate deployment review.
+
+## Restore procedure
+
+1. Stop the API container and disable the worker timer so no process is writing to SQLite.
+2. Select a known backup file and verify it with `python3 -c 'import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); print(c.execute("PRAGMA integrity_check").fetchone()[0])' <backup>`; expected output is `ok`.
+3. Preserve the current database as a separate dated file before replacing it.
+4. Copy the selected backup to `/var/lib/agent-reach/research.sqlite3`, set owner/group to the `agent-reach` service account/group, directory mode to 0750 and database mode to 0640.
+5. Re-enable the worker timer and start the API container. Confirm `/health` reports database availability and inspect `/v1/jobs` for the last completed collection.
+
+Worker logs are written to systemd journal. Configure host `systemd-journald` retention (for example `SystemMaxUse` and `MaxRetentionSec`) according to the VPS disk budget; do not write unbounded logs into the repository or container layer.
