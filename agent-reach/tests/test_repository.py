@@ -40,3 +40,27 @@ def test_repository_lists_items_and_returns_none_for_unknown_id(tmp_path):
     assert len(page.items) == 1
     assert page.items[0].id == saved.id
     assert repository.get_item("missing") is None
+
+def test_repository_filters_by_source_status_and_retrieval_window(tmp_path):
+    from datetime import datetime, timezone
+    from agent_reach.worker.normalize import normalize_record
+
+    repository = ResearchRepository(tmp_path / "research.sqlite3")
+    first = normalize_record(
+        {"source_name": "source-a", "source_type": "web", "source_url": "https://a.example/1",
+         "title": "First", "content_text": "First record"},
+        job_id="job-1", retrieved_at=datetime(2026, 11, 20, tzinfo=timezone.utc)
+    )
+    second = normalize_record(
+        {"source_name": "source-b", "source_type": "web", "source_url": "https://b.example/2",
+         "title": "Second", "content_text": "Second record"},
+        job_id="job-2", retrieved_at=datetime(2026, 11, 23, tzinfo=timezone.utc)
+    )
+    repository.insert_items([first, second])
+
+    page = repository.list_items(source="source-b", status="validated",
+                                 from_date="2026-11-22T00:00:00Z",
+                                 to_date="2026-11-24T00:00:00Z")
+
+    assert page.total == 1
+    assert page.items[0].id == second.id
