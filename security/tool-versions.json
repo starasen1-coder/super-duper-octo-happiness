@@ -1,0 +1,22 @@
+{
+  "agent_reach": {
+    "version": "1.6.1",
+    "asset": "agent-reach.zip",
+    "url": "https://github.com/Panniantong/Agent-Reach/releases/download/v1.6.1/agent-reach.zip",
+    "sha256": "51443d733bcb26064262442083a8f8abf6ba5e3e7df54beebafe98c88be04a60"
+  },
+  "skillspector": {
+    "version": "2.13.6",
+    "asset": "skillspector-2.13.6-py3-none-any.whl",
+    "url": "https://github.com/NVIDIA/SkillSpector/releases/download/v2.13.6/skillspector-2.13.6-py3-none-any.whl",
+    "sha256": "e7b46c55e726405b2a068d375d1ee8e799e15d86f3fc05f84feb5ba962198b15",
+    "license": "Apache-2.0"
+  },
+  "lemo_opuscar": {
+    "version": "2.0.0",
+    "repository": "https://github.com/lemomo-ai/lemo-opuscar",
+    "code_license": "MIT",
+    "documentation_and_style_prompts_license": "CC-BY-NC-4.0",
+    "commercial_use_of_documentation_and_style_prompts": "requires separate commercial permission"
+  }
+}
