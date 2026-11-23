@@ -9,9 +9,14 @@ def list_items(
     offset: int = Query(0, ge=0),
     source: str | None = None,
     status: str | None = None,
+    from_date: str | None = None,
+    to_date: str | None = None,
     repository=Depends(lambda: None),
 ):
-    page = repository.list_items(limit=limit, offset=offset, source=source, status=status)
+    page = repository.list_items(
+        limit=limit, offset=offset, source=source, status=status,
+        from_date=from_date, to_date=to_date
+    )
     return {
         "items": [item.__dict__ for item in page.items],
         "total": page.total,
