@@ -42,6 +42,38 @@ jobs:
         run: docker compose -f deploy/docker-compose.yml config --quiet
       - name: Build read-only API image
         run: docker build -f deploy/Dockerfile -t agent-reach-research-api:ci .
+      - name: Run API container against read-only SQLite database
+        env:
+          AGENT_REACH_API_TOKEN: ci-only-placeholder
+          AGENT_REACH_API_GID: "10001"
+          AGENT_REACH_DATA_DIR: /tmp/research-data
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/research-data
+          PYTHONPATH=agent-reach python - <<'PY'
+          from agent_reach.storage.repository import ResearchRepository
+          ResearchRepository("/tmp/research-data/research.sqlite3")
+          PY
+          sudo chgrp 10001 /tmp/research-data /tmp/research-data/research.sqlite3
+          chmod 750 /tmp/research-data
+          chmod 640 /tmp/research-data/research.sqlite3
+          docker compose -f deploy/docker-compose.yml up -d --build
+          cleanup() { docker compose -f deploy/docker-compose.yml down --volumes; }
+          trap cleanup EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:8080/health >/tmp/research-health.json; then
+              break
+            fi
+            sleep 1
+          done
+          python - <<'PY'
+          import json
+          data = json.load(open("/tmp/research-health.json", encoding="utf-8"))
+          assert data["ok"] is True and data["database"] == "available"
+          PY
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ci-only-placeholder" \
+            http://127.0.0.1:8080/v1/items
       - name: Test SkillSpector policy
         env:
           PYTHONPATH: .
