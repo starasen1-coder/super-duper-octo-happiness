@@ -52,3 +52,27 @@ def test_github_search_forces_public_api_and_parses_json(monkeypatch):
     ]
     assert result[0]["source_url"] == "https://github.com/org/repo"
     assert result[0]["content_text"] == "Public summary"
+
+def test_github_search_drops_non_github_result_urls(monkeypatch):
+    from agent_reach.worker.adapters.agent_reach_cli import CommandResult
+
+    payload = {
+        "schema_version": 1,
+        "ok": True,
+        "channel": "github",
+        "action": "search",
+        "items": [
+            {"title": "bad", "url": "https://evil.example/item", "text": "untrusted"},
+            {"title": "good", "url": "https://github.com/org/repo", "text": "trusted source"},
+        ],
+    }
+    monkeypatch.setattr(
+        AgentReachCLI,
+        "run",
+        lambda self, arguments: CommandResult(0, __import__("json").dumps(payload), ""),
+    )
+
+    records = AgentReachCLI().search_github("public research")
+
+    assert len(records) == 1
+    assert records[0]["source_url"] == "https://github.com/org/repo"
