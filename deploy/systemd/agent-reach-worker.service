@@ -1,0 +1,30 @@
+[Unit]
+Description=Agent Reach public research collection
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=agent-reach
+Group=agent-reach
+WorkingDirectory=/opt/agent-reach/app
+Environment=PYTHONPATH=/opt/agent-reach/app/agent-reach
+Environment=PATH=/home/agent-reach/.local/bin:/usr/local/bin:/usr/bin
+Environment=AGENT_REACH_DB=/var/lib/agent-reach/research.sqlite3
+ExecStart=/opt/agent-reach/venv/bin/python -m agent_reach.worker.cli collect --config /etc/agent-reach/sources.json --db /var/lib/agent-reach/research.sqlite3
+TimeoutStartSec=180
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=false
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/agent-reach /home/agent-reach/.agent-reach
+
+[Install]
+WantedBy=multi-user.target
