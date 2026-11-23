@@ -64,3 +64,23 @@ def test_repository_filters_by_source_status_and_retrieval_window(tmp_path):
 
     assert page.total == 1
     assert page.items[0].id == second.id
+
+def test_read_only_repository_can_read_but_cannot_write(tmp_path):
+    from datetime import datetime, timezone
+    import pytest
+
+    database = tmp_path / "research.sqlite3"
+    writable = ResearchRepository(database)
+    saved = normalize_record(
+        {"source_name": "source-a", "source_type": "web", "source_url": "https://a.example/read-only",
+         "title": "Read only", "content_text": "Stored before read-only open"},
+        job_id="job-ro", retrieved_at=datetime(2026, 11, 23, tzinfo=timezone.utc)
+    )
+    writable.insert_items([saved])
+
+    readonly = ResearchRepository(database, readonly=True)
+    assert readonly.get_item(saved.id).title == "Read only"
+    with pytest.raises(PermissionError, match="read-only"):
+        readonly.insert_items([saved])
+    with pytest.raises(PermissionError, match="read-only"):
+        readonly.create_job("job-write", "source-a", started_at="2026-11-23T00:00:00Z")
