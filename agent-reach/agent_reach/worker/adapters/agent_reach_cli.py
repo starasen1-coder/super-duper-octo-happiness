@@ -4,6 +4,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from typing import Sequence
+from urllib.parse import urlparse
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,9 @@ class AgentReachCLI:
         records = []
         for item in payload.get("items", []):
             if not isinstance(item, dict) or not item.get("url"):
+                continue
+            parsed_url = urlparse(str(item["url"]))
+            if parsed_url.scheme != "https" or parsed_url.netloc.lower() != "github.com":
                 continue
             raw = item.get("raw") if isinstance(item.get("raw"), dict) else {}
             content = item.get("text") or raw.get("description") or item.get("title") or ""
