@@ -44,3 +44,25 @@ def test_collection_marks_job_failed_and_reraises(tmp_path):
 
     assert repository.list_jobs()[0]["status"] == "failed"
     assert repository.list_jobs()[0]["error_summary"] == "TimeoutError"
+
+def test_collection_retries_one_transient_timeout(tmp_path, monkeypatch):
+    class FlakyCLI:
+        calls = 0
+
+        def search_github(self, query, *, limit):
+            self.calls += 1
+            if self.calls == 1:
+                raise TimeoutError("temporary timeout")
+            return FakeCLI().search_github(query, limit=limit)
+
+    monkeypatch.setattr("agent_reach.worker.runner.time.sleep", lambda seconds: None)
+    repository = ResearchRepository(tmp_path / "research.sqlite3")
+    cli = FlakyCLI()
+
+    result = collect_github_search(
+        "agent security", job_id="job-retry", repository=repository, cli=cli
+    )
+
+    assert cli.calls == 2
+    assert result.inserted == 1
+    assert repository.list_jobs()[0]["status"] == "completed"
