@@ -46,3 +46,21 @@ def test_strategy_attaches_quote_liquidity_after_m5_bar_close():
     })
     out = build_signals(m5, _h1(), quote_features=quote)
     assert out.loc[0, "quote_imbalance"] == 0.4
+
+
+def test_h1_structure_is_not_visible_until_hourly_candle_closes():
+    m5 = pd.DataFrame({
+        "time": pd.date_range("2026-01-01T02:50:00Z", periods=3, freq="5min"),
+        "open": [100.0]*3, "high": [100.2]*3, "low": [99.8]*3,
+        "close": [100.0]*3, "volume": [10]*3,
+    })
+    h1 = pd.DataFrame({
+        "time": pd.date_range("2026-01-01T00:00:00Z", periods=3, freq="1h"),
+        "open": [99.0, 100.0, 101.0],
+        "high": [100.0, 101.0, 110.0],
+        "low": [98.0, 99.0, 100.0],
+        "close": [99.0, 100.0, 109.0],
+        "volume": [1]*3,
+    })
+    out = build_signals(m5, h1, h1_structure_lookback=2)
+    assert out["h1_bull"].tolist() == [False, True, True]
