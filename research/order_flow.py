@@ -41,7 +41,17 @@ def order_flow_features(df: pd.DataFrame, mode: str = "auto") -> pd.DataFrame:
     out = df.copy()
     if mode not in {"auto", "true", "proxy"}:
         raise ValueError("mode must be auto, true or proxy")
-    if mode == "true" or (mode == "auto" and {"bid_volume", "ask_volume"} <= set(out.columns)):
+    has_trade_semantics = (
+        "volume_semantics" in out.columns
+        and out["volume_semantics"].eq("aggressor_trade_volume").all()
+    )
+    has_classified_volumes = {"bid_volume", "ask_volume"} <= set(out.columns)
+    if mode == "true" and not (has_trade_semantics and has_classified_volumes):
+        raise ValueError(
+            "true order flow requires bid_volume/ask_volume explicitly labeled "
+            "volume_semantics='aggressor_trade_volume'; quote sizes are not trade flow"
+        )
+    if mode == "true" or (mode == "auto" and has_trade_semantics and has_classified_volumes):
         out["delta"] = true_order_flow(out["bid_volume"], out["ask_volume"])
         out["order_flow_mode"] = "true"
     elif mode in {"auto", "proxy"}:
