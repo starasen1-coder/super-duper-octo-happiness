@@ -176,7 +176,9 @@ def main():
     h["available_at"]=h.index+pd.Timedelta(hours=1)
     summary={"dataset":{"rows":len(d),"start":str(d.time.iloc[0]),"end":str(d.time.iloc[-1]),"timezone":"UTC",
                         "missing_volume":bool(d.volume.isna().all()),"median_bar_minutes":float(d.time.diff().dt.total_seconds().median()/60)},
-             "stage_counts":stages,"results":[s0,s1],\n             "confirmed_nonoverlap_by_year":yearly,\n             "confirmed_nonoverlap_development_vs_holdout":holdout,
+             "stage_counts":stages,"results":[s0,s1],
+             "confirmed_nonoverlap_by_year":yearly,
+             "confirmed_nonoverlap_development_vs_holdout":holdout,
              "confirmed_monthly_all_signals":(t1.assign(month=pd.to_datetime(t1.entry_time,utc=True).dt.strftime("%Y-%m")).groupby("month").agg(signals=("r","size"),mean_R=("r","mean")).reset_index().to_dict("records") if len(t1) else []),
              "confirmed_by_side":(t1.groupby("side").agg(trades=("r","size"),mean_R=("r","mean"),wins=("result",lambda x:int((x=="TP").sum())),losses=("result",lambda x:int(x.str.startswith("SL").sum()))).reset_index().to_dict("records") if len(t1) else []),
              "method":{"pool_lookback_bars":36,"sweep":"wick beyond prior rolling extreme and close back across it",
