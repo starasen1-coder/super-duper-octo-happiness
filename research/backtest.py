@@ -115,3 +115,82 @@ def backtest_short(bars: pd.DataFrame, entry_index: int, spec: TradeSpec) -> Tra
     last = bars.iloc[-1]
     exit_price = float(last["close"]) + float(last["spread"]) / 2.0 + spec.slippage
     return TradeResult(entry_index, len(bars) - 1, "eod", entry, exit_price, entry - exit_price)
+
+
+
+def backtest_setups(
+    bars: pd.DataFrame,
+    setups: pd.DataFrame,
+    slippage: float = 0.0,
+    horizon: int = 48,
+) -> pd.DataFrame:
+    """Execute sequential long/short setup rows with no overlapping positions.
+
+    OHLC columns are assumed to be mid prices and spread is a price-unit value.
+    The entry is on the next bar open; the execution helpers use Ask for long
+    entries/exits and Bid for short entries/exits. Commission and swap are not
+    included and must be modeled separately.
+    """
+    required_bars = {"open", "high", "low", "close", "spread"}
+    required_setups = {"side", "entry_index", "stop_price", "target_price"}
+    if not required_bars.issubset(bars.columns):
+        raise ValueError(f"bars require columns: {', '.join(sorted(required_bars))}")
+    if not required_setups.issubset(setups.columns):
+        raise ValueError(f"setups require columns: {', '.join(sorted(required_setups))}")
+    if horizon < 1:
+        raise ValueError("horizon must be >= 1")
+    if slippage < 0:
+        raise ValueError("slippage must be non-negative")
+    if setups.empty:
+        return pd.DataFrame(columns=[
+            "side", "entry_index", "exit_index", "exit_reason",
+            "entry_price", "exit_price", "net_price_move", "initial_risk", "r_multiple",
+        ])
+
+    results: list[dict] = []
+    last_exit_index = -1
+    ordered = setups.sort_values("entry_index", kind="stable")
+    for _, setup in ordered.iterrows():
+        side = int(setup["side"])
+        entry_index = int(setup["entry_index"])
+        if side not in (-1, 1):
+            raise ValueError("setup side must be 1 (long) or -1 (short)")
+        if entry_index <= last_exit_index:
+            continue
+        if entry_index < 0 or entry_index >= len(bars):
+            raise IndexError("setup entry_index out of range")
+
+        mid_entry = float(bars.iloc[entry_index]["open"])
+        stop = float(setup["stop_price"])
+        target = float(setup["target_price"])
+        risk = mid_entry - stop if side == 1 else stop - mid_entry
+        reward = target - mid_entry if side == 1 else mid_entry - target
+        if risk <= 0 or reward <= 0:
+            raise ValueError("setup stop/target levels are invalid for its side")
+
+        window_end = min(len(bars), entry_index + horizon)
+        window = bars.iloc[:window_end]
+        spec = TradeSpec(
+            sl_distance=risk,
+            tp_distance=reward,
+            slippage=slippage,
+        )
+        result = (
+            backtest_long(window, entry_index, spec)
+            if side == 1 else backtest_short(window, entry_index, spec)
+        )
+        row = setup.to_dict()
+        row.update({
+            "entry_index": result.entry_index,
+            "exit_index": result.exit_index,
+            "exit_reason": result.exit_reason,
+            "entry_price": result.entry_price,
+            "exit_price": result.exit_price,
+            "net_price_move": result.net_price_move,
+            "initial_risk": risk,
+            "r_multiple": result.net_price_move / risk,
+        })
+        results.append(row)
+        last_exit_index = result.exit_index
+
+    return pd.DataFrame(results)
