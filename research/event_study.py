@@ -67,6 +67,15 @@ def outcome(d, entry_i, side, stop, target, horizon=48):
     j=max(entry_i,end-1); close=float(d.close.iloc[j]); mark=((close-entry) if side=="long" else (entry-close))/risk
     return {"result":"TIMEOUT","exit_i":j,"r":mark,"mfe_r":best,"mae_r":worst}
 
+def select_nonoverlap(t: pd.DataFrame) -> pd.DataFrame:
+    if t.empty: return t.copy()
+    ordered=t.sort_values("entry_i")
+    chosen=[]; free_after=-1
+    for _,row in ordered.iterrows():
+        if int(row.entry_i)>free_after:
+            chosen.append(row); free_after=int(row.exit_i)
+    return pd.DataFrame(chosen).reset_index(drop=True)
+
 def evaluate(d, events, label, horizon=48):
     rows=[]
     for e in events:
@@ -80,11 +89,7 @@ def evaluate(d, events, label, horizon=48):
     n=len(t); wins=int((t.result=="TP").sum()) if n else 0; losses=int(t.result.str.startswith("SL").sum()) if n else 0
     resolved=wins+losses
     rvals=t.r.dropna() if n else pd.Series(dtype=float)
-    ordered=t.sort_values("entry_i"); chosen=[]; free_after=-1
-    for _,row in ordered.iterrows():
-        if int(row.entry_i)>free_after:
-            chosen.append(row); free_after=int(row.exit_i)
-    nt=pd.DataFrame(chosen); nr=len(nt); nrvals=nt.r.dropna() if nr else pd.Series(dtype=float)
+    nt=select_nonoverlap(t); nr=len(nt); nrvals=nt.r.dropna() if nr else pd.Series(dtype=float)
     cost=[]
     for dollars in (0.0,0.20,0.40,0.80):
         net=(nrvals - dollars/nt.risk_price) if nr else pd.Series(dtype=float)
