@@ -75,14 +75,14 @@ def evaluate(d, events, label, horizon=48):
         if not np.isfinite(risk) or risk<=0: continue
         target=entry+(2*risk if side=="long" else -2*risk)
         z=outcome(d,i,side,stop,target,horizon)
-        rows.append({"setup":label,"side":side,"signal_time":str(d.time.iloc[e["signal_i"]]),"entry_time":str(d.time.iloc[i]),"exit_time":str(d.time.iloc[z["exit_i"]]),"exit_i":z["exit_i"],"result":z["result"],"r":z["r"],"mfe_r":z["mfe_r"],"mae_r":z["mae_r"],"risk_price":risk})
+        rows.append({"setup":label,"side":side,"signal_time":str(d.time.iloc[e["signal_i"]]),"entry_time":str(d.time.iloc[i]),"entry_i":i,"exit_time":str(d.time.iloc[z["exit_i"]]),"exit_i":z["exit_i"],"result":z["result"],"r":z["r"],"mfe_r":z["mfe_r"],"mae_r":z["mae_r"],"risk_price":risk})
     t=pd.DataFrame(rows)
     n=len(t); wins=int((t.result=="TP").sum()) if n else 0; losses=int(t.result.str.startswith("SL").sum()) if n else 0
     resolved=wins+losses
     rvals=t.r.dropna() if n else pd.Series(dtype=float)
-    ordered=t.sort_values("entry_time"); chosen=[]; free_after=-1
+    ordered=t.sort_values("entry_i"); chosen=[]; free_after=-1
     for _,row in ordered.iterrows():
-        if int(row.exit_i)>free_after:
+        if int(row.entry_i)>free_after:
             chosen.append(row); free_after=int(row.exit_i)
     nt=pd.DataFrame(chosen); nr=len(nt); nrvals=nt.r.dropna() if nr else pd.Series(dtype=float)
     cost=[]
@@ -143,7 +143,7 @@ def main():
     summary={"dataset":{"rows":len(d),"start":str(d.time.iloc[0]),"end":str(d.time.iloc[-1]),"timezone":"UTC",
                         "missing_volume":bool(d.volume.isna().all()),"median_bar_minutes":float(d.time.diff().dt.total_seconds().median()/60)},
              "stage_counts":stages,"results":[s0,s1],
-             "confirmed_monthly":(t1.assign(month=pd.to_datetime(t1.entry_time,utc=True).dt.strftime("%Y-%m")).groupby("month").agg(trades=("r","size"),mean_R=("r","mean"),wins=("result",lambda x:int((x=="TP").sum())),losses=("result",lambda x:int(x.str.startswith("SL").sum()))).reset_index().to_dict("records") if len(t1) else []),
+             "confirmed_monthly_all_signals":(t1.assign(month=pd.to_datetime(t1.entry_time,utc=True).dt.strftime("%Y-%m")).groupby("month").agg(signals=("r","size"),mean_R=("r","mean")).reset_index().to_dict("records") if len(t1) else []),
              "confirmed_by_side":(t1.groupby("side").agg(trades=("r","size"),mean_R=("r","mean"),wins=("result",lambda x:int((x=="TP").sum())),losses=("result",lambda x:int(x.str.startswith("SL").sum()))).reset_index().to_dict("records") if len(t1) else []),
              "method":{"pool_lookback_bars":36,"sweep":"wick beyond prior rolling extreme and close back across it",
                        "impulse":"within 4 bars; body/range >= 0.65; range >= 1.4 ATR; 3-bar close break",
