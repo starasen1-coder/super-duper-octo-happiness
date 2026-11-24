@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: python -m pip install --upgrade pip pandas pytest
-      - run: pytest -q tests/test_backtest.py
+      - run: PYTHONPATH=. pytest -q tests/test_backtest.py
       - run: python research/backtest_xauusd_liquidity.py --data /tmp/XAUUSD_5m.csv --out results
       - uses: actions/upload-artifact@v4
         with:
@@ -23,3 +23,4 @@ jobs:
           path: results/
 
 # CI mirror uses completed H1 bars only; no live execution.
+# PYTHONPATH is explicit so the repository package is resolved on hosted runners.
