@@ -75,8 +75,17 @@ def outcome(d, entry_i, side, stop, target, horizon=48):
     return {"result":"TIMEOUT","exit_i":j,"r":mark,"mfe_r":best,"mae_r":worst}
 
 def select_nonoverlap(t: pd.DataFrame) -> pd.DataFrame:
+    """Select a deterministic non-overlapping sequence.
+
+    Stable tie-breaks matter: multiple events can share an entry bar, and the
+    default pandas sort algorithm is not stable. Preserve detector order unless
+    explicit signal time/side fields provide deterministic tie-breaks.
+    """
     if t.empty: return t.copy()
-    ordered=t.sort_values("entry_i")
+    sort_cols=["entry_i"]
+    for col in ("signal_time", "side"):
+        if col in t.columns: sort_cols.append(col)
+    ordered=t.sort_values(sort_cols, kind="mergesort")
     chosen=[]; free_after=-1
     for _,row in ordered.iterrows():
         if int(row.entry_i)>free_after:
@@ -163,7 +172,7 @@ def main():
                            "losses":int(g.result.str.startswith("SL").sum()),
                            "timeouts":int((g.result=="TIMEOUT").sum())})
         nt["period"]=np.where(pd.to_datetime(nt.entry_time,utc=True)<pd.Timestamp("2024-01-01",tz="UTC"),
-                              "development_2021_2023","holdout_2024_2026")
+                              "development_2021_2023","holdout_2024_2025")
         holdout=[]
         for period,g in nt.groupby("period"):
             rv=g.r.dropna()
