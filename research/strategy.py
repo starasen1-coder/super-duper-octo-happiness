@@ -24,7 +24,10 @@ def _h1_direction(h1: pd.DataFrame, lookback: int) -> pd.DataFrame:
     prev_low = x["low"].shift(1).rolling(lookback, min_periods=lookback).min()
     x["h1_bull"] = x["close"] > prev_high
     x["h1_bear"] = x["close"] < prev_low
-    return x[["time", "h1_bull", "h1_bear"]]
+    # H1 timestamps denote candle OPEN. Its close-based structure state is only
+    # observable one hour later; exposing it at the open leaks the H1 close.
+    x["available_at"] = x["time"] + pd.Timedelta(hours=1)
+    return x[["available_at", "h1_bull", "h1_bear"]]
 
 
 def build_signals(
@@ -44,7 +47,16 @@ def build_signals(
         raise ValueError("lookbacks must be >= 2")
     x = m5.sort_values("time").copy()
     h = _h1_direction(h1, h1_structure_lookback)
-    x = pd.merge_asof(x, h.sort_values("time"), on="time", direction="backward")
+    # M5 timestamps denote candle OPEN; decisions are made at that M5 candle CLOSE.
+    x["_decision_time"] = x["time"] + pd.Timedelta(minutes=5)
+    x = pd.merge_asof(
+        x.sort_values("_decision_time"),
+        h.sort_values("available_at"),
+        left_on="_decision_time",
+        right_on="available_at",
+        direction="backward",
+    )
+    x = x.drop(columns=["_decision_time"])
     if quote_features is not None:
         x = merge_quote_liquidity(x, quote_features)
     x = order_flow_features(x, mode=order_flow_mode)
