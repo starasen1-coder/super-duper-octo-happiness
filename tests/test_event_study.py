@@ -40,3 +40,16 @@ def test_load_data_parses_unix_milliseconds_as_utc(tmp_path):
     )
     d=load_data(str(p))
     assert d.time.iloc[0] == pd.Timestamp("2021-01-01 00:00:00", tz="UTC")
+
+def test_load_data_reads_jsonl_ohlcv(tmp_path):
+    from research.event_study import load_data
+    p=tmp_path/"dukascopy.jsonl"
+    p.write_text(
+        '{"Date":"2021.01.01 00:00","Open":1900,"High":1902,"Low":1899,"Close":1901,"Volume":12}\n'
+        '{"Date":"2021.01.01 00:05","Open":1901,"High":1903,"Low":1900,"Close":1902,"Volume":15}\n',
+        encoding="utf-8"
+    )
+    d=load_data(str(p))
+    assert len(d)==2
+    assert d.time.iloc[0] == pd.Timestamp("2021-01-01 00:00:00", tz="UTC")
+    assert d.volume.tolist()==[12,15]
