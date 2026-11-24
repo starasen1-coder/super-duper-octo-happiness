@@ -56,7 +56,7 @@ The following paths are **proposed** and do not yet exist unless verified during
 - Create: `agent-reach/agent_reach/storage/repository.py`
 - Create: `agent-reach/tests/test_normalize.py`
 - Create: `agent-reach/tests/test_repository.py`
-- Create: `agent-reach/config/sources.example.yml`
+- Create: `agent-reach/config/sources.example.json`
 
 **Interfaces:**
 - Consumes: allowlisted source configuration; Agent Reach CLI output captured by the worker.
