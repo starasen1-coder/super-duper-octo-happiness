@@ -124,3 +124,46 @@ def test_walk_forward_split_is_time_ordered():
     assert parts.train["x"].tolist() == list(range(6))
     assert parts.validation["x"].tolist() == [6, 7]
     assert parts.test["x"].tolist() == [8, 9]
+
+
+
+def test_backtest_setups_routes_short_and_calculates_r_multiple():
+    import research.backtest as execution
+
+    assert callable(getattr(execution, "backtest_setups", None))
+    bars = pd.DataFrame({
+        "time": pd.date_range("2026-01-01", periods=3, freq="5min", tz="UTC"),
+        "open": [100.0, 100.0, 100.0],
+        "high": [100.0, 100.2, 100.2],
+        "low": [100.0, 98.8, 98.8],
+        "close": [100.0, 99.0, 99.0],
+        "spread": [0.2, 0.2, 0.2],
+    })
+    setups = pd.DataFrame([{
+        "side": -1, "entry_index": 0, "entry_price": 100.0,
+        "stop_price": 101.0, "target_price": 99.0, "risk": 1.0,
+    }])
+    trades = execution.backtest_setups(bars, setups, slippage=0.0, horizon=48)
+    assert len(trades) == 1
+    assert trades.iloc[0]["exit_reason"] == "tp"
+    assert trades.iloc[0]["r_multiple"] == pytest.approx(0.9)
+
+
+def test_backtest_setups_does_not_open_overlapping_trade_on_exit_bar():
+    import research.backtest as execution
+
+    assert callable(getattr(execution, "backtest_setups", None))
+    bars = pd.DataFrame({
+        "time": pd.date_range("2026-01-01", periods=4, freq="5min", tz="UTC"),
+        "open": [100.0] * 4, "high": [100.0, 101.2, 101.2, 101.2],
+        "low": [100.0, 99.8, 99.8, 99.8], "close": [100.0, 101.0, 101.0, 101.0],
+        "spread": [0.2] * 4,
+    })
+    setups = pd.DataFrame([
+        {"side": 1, "entry_index": 0, "entry_price": 100.0, "stop_price": 99.5, "target_price": 101.0, "risk": 0.5},
+        {"side": 1, "entry_index": 1, "entry_price": 100.0, "stop_price": 99.5, "target_price": 101.0, "risk": 0.5},
+    ])
+    trades = execution.backtest_setups(bars, setups, slippage=0.0, horizon=48)
+    assert len(trades) == 1
+    assert trades.iloc[0]["entry_index"] == 0
+    assert trades.iloc[0]["exit_index"] == 1
