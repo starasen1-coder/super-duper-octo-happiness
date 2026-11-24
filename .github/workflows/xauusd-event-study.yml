@@ -1,4 +1,4 @@
-name: XAUUSD causal event study
+name: XAUUSD extended historical event study
 on:
   push:
     branches: [agent-reach-setup]
@@ -9,19 +9,39 @@ permissions:
 jobs:
   event-study:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      - run: python -m pip install --upgrade pip pandas numpy pytest
-      - run: PYTHONPATH=. pytest -q tests/test_event_study.py
-      - run: python research/event_study.py --data /tmp/xauusd_m5.csv --out results
-      - uses: actions/upload-artifact@v4
+      - uses: actions/setup-node@v4
         with:
-          name: xauusd-causal-event-study
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download five years of XAUUSD M5 bid candles from Dukascopy
+        run: >-
+          npx --yes dukascopy-node@latest
+          -i xauusd
+          -from 2021-01-01
+          -to 2026-10-01
+          -t m5
+          -p bid
+          -f csv
+          -v
+          -dir /tmp
+          -fn xauusd_m5
+          --batch-size 10
+          --batch-pause 1500
+          --retries 3
+      - name: Install analysis dependencies
+        run: python -m pip install --upgrade pip pandas numpy pytest
+      - name: Run regression tests
+        run: PYTHONPATH=. pytest -q tests/test_event_study.py
+      - name: Run fixed-parameter event study
+        run: python research/event_study.py --data /tmp/xauusd_m5.csv --out results
+      - name: Upload full-period and holdout results
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-2021-2026-event-study
           path: results/
-
-# Trigger updated non-overlap and cost sensitivity diagnostics.
-
-# Trigger corrected non-overlap selection test and full re-run.
+          retention-days: 14
