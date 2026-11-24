@@ -21,3 +21,5 @@ jobs:
         with:
           name: xauusd-causal-event-study
           path: results/
+
+# Trigger updated non-overlap and cost sensitivity diagnostics.
