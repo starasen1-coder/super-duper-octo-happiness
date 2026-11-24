@@ -52,15 +52,20 @@ def add_features(d: pd.DataFrame) -> pd.DataFrame:
     return x
 
 def outcome(d, entry_i, side, stop, target, horizon=48):
-    entry=float(d.open.iloc[entry_i])
-    for j in range(entry_i,min(len(d),entry_i+horizon)):
+    entry=float(d.open.iloc[entry_i]); risk=abs(entry-stop); end=min(len(d),entry_i+horizon)
+    best=0.0; worst=0.0
+    for j in range(entry_i,end):
         hi=float(d.high.iloc[j]); lo=float(d.low.iloc[j])
+        fav=(hi-entry if side=="long" else entry-lo)/risk
+        adv=(entry-lo if side=="long" else hi-entry)/risk
+        best=max(best,fav); worst=max(worst,adv)
         sl=(lo<=stop) if side=="long" else (hi>=stop)
         tp=(hi>=target) if side=="long" else (lo<=target)
-        if sl and tp: return {"result":"SL_same_bar","exit_i":j,"r":-1.0,"mfe_r":None,"mae_r":None}
-        if sl: return {"result":"SL","exit_i":j,"r":-1.0,"mfe_r":None,"mae_r":None}
-        if tp: return {"result":"TP","exit_i":j,"r":abs(target-entry)/abs(entry-stop),"mfe_r":None,"mae_r":None}
-    return {"result":"TIMEOUT","exit_i":min(len(d)-1,entry_i+horizon-1),"r":None,"mfe_r":None,"mae_r":None}
+        if sl and tp: return {"result":"SL_same_bar","exit_i":j,"r":-1.0,"mfe_r":best,"mae_r":worst}
+        if sl: return {"result":"SL","exit_i":j,"r":-1.0,"mfe_r":best,"mae_r":worst}
+        if tp: return {"result":"TP","exit_i":j,"r":abs(target-entry)/risk,"mfe_r":best,"mae_r":worst}
+    j=max(entry_i,end-1); close=float(d.close.iloc[j]); mark=((close-entry) if side=="long" else (entry-close))/risk
+    return {"result":"TIMEOUT","exit_i":j,"r":mark,"mfe_r":best,"mae_r":worst}
 
 def evaluate(d, events, label, horizon=48):
     rows=[]
@@ -70,16 +75,26 @@ def evaluate(d, events, label, horizon=48):
         if not np.isfinite(risk) or risk<=0: continue
         target=entry+(2*risk if side=="long" else -2*risk)
         z=outcome(d,i,side,stop,target,horizon)
-        rows.append({"setup":label,"side":side,"signal_time":str(d.time.iloc[e["signal_i"]]),"entry_time":str(d.time.iloc[i]),"result":z["result"],"r":z["r"],"risk_price":risk})
+        rows.append({"setup":label,"side":side,"signal_time":str(d.time.iloc[e["signal_i"]]),"entry_time":str(d.time.iloc[i]),"exit_time":str(d.time.iloc[z["exit_i"]]),"exit_i":z["exit_i"],"result":z["result"],"r":z["r"],"mfe_r":z["mfe_r"],"mae_r":z["mae_r"],"risk_price":risk})
     t=pd.DataFrame(rows)
     n=len(t); wins=int((t.result=="TP").sum()) if n else 0; losses=int(t.result.str.startswith("SL").sum()) if n else 0
     resolved=wins+losses
     rvals=t.r.dropna() if n else pd.Series(dtype=float)
-    return {"setup":label,"signals":n,"wins":wins,"losses":losses,"timeouts":n-resolved,
+    ordered=t.sort_values("entry_time"); chosen=[]; free_after=-1
+    for _,row in ordered.iterrows():
+        if int(row.exit_i)>free_after:
+            chosen.append(row); free_after=int(row.exit_i)
+    nt=pd.DataFrame(chosen); nr=len(nt); nrvals=nt.r.dropna() if nr else pd.Series(dtype=float)
+    cost=[]
+    for dollars in (0.0,0.20,0.40,0.80):
+        net=(nrvals - dollars/nt.risk_price) if nr else pd.Series(dtype=float)
+        cost.append({"round_trip_cost_price":dollars,"nonoverlap_trades":nr,"expectancy_net_R":float(net.mean()) if len(net) else None,"profit_factor_net":float(net[net>0].sum()/-net[net<0].sum()) if len(net) and (net<0).any() else None})
+    return {"setup":label,"signals_including_overlaps":n,"wins":wins,"losses":losses,"timeouts":n-resolved,
             "win_rate_resolved_pct":100*wins/resolved if resolved else None,
-            "mean_R_resolved":float(rvals.mean()) if len(rvals) else None,
-            "expectancy_R_all":float(rvals.sum()/n) if n else None,
-            "profit_factor_R":float(rvals[rvals>0].sum()/-rvals[rvals<0].sum()) if len(rvals) and (rvals<0).any() else None},t
+            "expectancy_R_all_events":float(rvals.mean()) if len(rvals) else None,
+            "profit_factor_R_all_events":float(rvals[rvals>0].sum()/-rvals[rvals<0].sum()) if len(rvals) and (rvals<0).any() else None,
+            "nonoverlap_trades":nr,"nonoverlap_expectancy_R_gross":float(nrvals.mean()) if len(nrvals) else None,
+            "cost_sensitivity_nonoverlap":cost},t
 
 def detect_setups(d):
     base=[]; confirmed=[]; stages={"sweeps":0,"impulse_after_sweep":0,"retest_after_impulse":0,"valid_entries":0}
@@ -128,6 +143,8 @@ def main():
     summary={"dataset":{"rows":len(d),"start":str(d.time.iloc[0]),"end":str(d.time.iloc[-1]),"timezone":"UTC",
                         "missing_volume":bool(d.volume.isna().all()),"median_bar_minutes":float(d.time.diff().dt.total_seconds().median()/60)},
              "stage_counts":stages,"results":[s0,s1],
+             "confirmed_monthly":(t1.assign(month=pd.to_datetime(t1.entry_time,utc=True).dt.strftime("%Y-%m")).groupby("month").agg(trades=("r","size"),mean_R=("r","mean"),wins=("result",lambda x:int((x=="TP").sum())),losses=("result",lambda x:int(x.str.startswith("SL").sum()))).reset_index().to_dict("records") if len(t1) else []),
+             "confirmed_by_side":(t1.groupby("side").agg(trades=("r","size"),mean_R=("r","mean"),wins=("result",lambda x:int((x=="TP").sum())),losses=("result",lambda x:int(x.str.startswith("SL").sum()))).reset_index().to_dict("records") if len(t1) else []),
              "method":{"pool_lookback_bars":36,"sweep":"wick beyond prior rolling extreme and close back across it",
                        "impulse":"within 4 bars; body/range >= 0.65; range >= 1.4 ATR; 3-bar close break",
                        "retest":"within 6 bars; revisit broken level and close back through",
