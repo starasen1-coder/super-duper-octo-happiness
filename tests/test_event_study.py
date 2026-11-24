@@ -53,3 +53,16 @@ def test_load_data_reads_jsonl_ohlcv(tmp_path):
     assert len(d)==2
     assert d.time.iloc[0] == pd.Timestamp("2021-01-01 00:00:00", tz="UTC")
     assert d.volume.tolist()==[12,15]
+
+def test_nonoverlap_selector_has_deterministic_tie_breaks():
+    from research.event_study import select_nonoverlap
+    x=pd.DataFrame({
+        "entry_i":[10,10,30],
+        "exit_i":[25,20,40],
+        "signal_time":["2026-01-01T00:00:00Z","2026-01-01T00:00:00Z","2026-01-01T00:10:00Z"],
+        "side":["short","long","long"],
+        "r":[-1.0,2.0,1.0]
+    })
+    y=select_nonoverlap(x)
+    assert y.side.tolist()==["long","long"]
+    assert y.entry_i.tolist()==[10,30]
