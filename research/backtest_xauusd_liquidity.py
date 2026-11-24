@@ -15,7 +15,8 @@ def run(df,initial=10000,risk_pct=.5,spread=.20):
     h=df.set_index("datetime").resample("1h").agg({"open":"first","high":"max","low":"min","close":"last"}).dropna().reset_index()
     h["bull"]=(h.close>h.high.shift(2))&(h.low.shift(1)>=h.low.shift(2))&(h.high.shift(1)>=h.high.shift(2))
     h["bear"]=(h.close<h.low.shift(2))&(h.high.shift(1)<=h.high.shift(2))&(h.low.shift(1)<=h.low.shift(2))
-    df=pd.merge_asof(df,h[["datetime","bull","bear"]].sort_values("datetime"),on="datetime",direction="backward")
+    h["available_at"]=h.datetime+pd.Timedelta(hours=1)
+    df=pd.merge_asof(df,h[["available_at","bull","bear"]].sort_values("available_at"),left_on="datetime",right_on="available_at",direction="backward")
     eq=initial; peak=initial; maxdd=0.; trades=[]; i=40; cooldown=-1
     while i<len(df)-2:
         r=df.iloc[i]
