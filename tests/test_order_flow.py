@@ -5,7 +5,8 @@ def test_true_order_flow_uses_ask_minus_bid():
     df = pd.DataFrame({
         "time": pd.date_range("2026-01-01", periods=3, freq="5min"),
         "open":[1,1,1], "high":[1,1,1], "low":[1,1,1], "close":[1,1,1],
-        "volume":[10,20,30], "bid_volume":[8,5,20], "ask_volume":[12,15,25]
+        "volume":[10,20,30], "bid_volume":[8,5,20], "ask_volume":[12,15,25],
+        "volume_semantics":["aggressor_trade_volume"]*3
     })
     out = order_flow_features(df, mode="true")
     assert out["delta"].tolist() == [4,10,5]
