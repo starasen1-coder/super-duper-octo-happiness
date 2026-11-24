@@ -35,7 +35,7 @@ def test_backtest_spread_is_charged_on_entry_and_exit():
     })
     result = backtest_long(bars, entry_index=0, spec=TradeSpec(sl_distance=0.5, tp_distance=1.0))
     assert result.exit_reason == "tp"
-    assert result.net_price_move == pytest.approx(0.8)
+    assert result.net_price_move == pytest.approx(0.9)
 
 
 def test_long_stop_gap_fills_at_first_available_bid_not_stale_stop_level():
@@ -53,9 +53,29 @@ def test_long_stop_gap_fills_at_first_available_bid_not_stale_stop_level():
         bars, entry_index=0,
         spec=TradeSpec(sl_distance=0.5, tp_distance=1.0, slippage=0.05),
     )
-    assert result.exit_reason == "sl"
+    assert result.exit_reason == "sl_gap"
     assert result.exit_index == 1
     assert result.exit_price == pytest.approx(97.85)
+
+
+def test_long_target_gap_fills_at_first_available_bid():
+    from research.backtest import TradeSpec, backtest_long
+
+    bars = pd.DataFrame({
+        "time": pd.date_range("2026-01-01", periods=2, freq="5min", tz="UTC"),
+        "open": [100.0, 102.0],
+        "high": [100.1, 102.2],
+        "low": [99.9, 101.8],
+        "close": [100.0, 102.1],
+        "spread": [0.2, 0.2],
+    })
+    result = backtest_long(
+        bars, entry_index=0,
+        spec=TradeSpec(sl_distance=0.5, tp_distance=1.0, slippage=0.05),
+    )
+    assert result.exit_reason == "tp_gap"
+    assert result.exit_index == 1
+    assert result.exit_price == pytest.approx(101.85)
 
 
 def test_walk_forward_split_is_time_ordered():
