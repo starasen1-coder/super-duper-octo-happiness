@@ -21,3 +21,5 @@ jobs:
         with:
           name: xauusd-liquidity-backtest
           path: results/
+
+# CI mirror uses completed H1 bars only; no live execution.
