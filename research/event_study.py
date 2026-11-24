@@ -22,7 +22,11 @@ def load_data(path: str) -> pd.DataFrame:
     time_col=next((c for c in ("datetime","timestamp","date_time","time","date") if c in d.columns),None)
     if time_col is None: raise ValueError(f"No timestamp column: {list(d.columns)}")
     d=d.rename(columns={time_col:"time"})
-    d["time"]=pd.to_datetime(d.time,utc=True)
+    # Dukascopy CSV timestamps are Unix milliseconds; sample CSV timestamps are ISO strings.
+    if pd.api.types.is_numeric_dtype(d["time"]):
+        d["time"]=pd.to_datetime(pd.to_numeric(d["time"],errors="coerce"),unit="ms",utc=True)
+    else:
+        d["time"]=pd.to_datetime(d["time"],utc=True)
     for c in ("open","high","low","close"):
         if c not in d: raise ValueError(f"Missing {c}")
         d[c]=pd.to_numeric(d[c],errors="coerce")
@@ -142,12 +146,37 @@ def main():
     stages,base,confirmed=detect_setups(d)
     s0,t0=evaluate(d,base,"sweep_reclaim_only")
     s1,t1=evaluate(d,confirmed,"sweep_impulse_retest")
+    # Select non-overlapping confirmed events once across the full sample, then report
+    # fixed-parameter calendar periods without re-selecting at period boundaries.
+    nt=select_nonoverlap(t1)
+    if len(nt):
+        nt["year"]=pd.to_datetime(nt.entry_time,utc=True).dt.year
+        yearly=[]
+        for year,g in nt.groupby("year"):
+            rv=g.r.dropna()
+            yearly.append({"year":int(year),"trades":len(g),"mean_R":float(rv.mean()),
+                           "profit_factor":float(rv[rv>0].sum()/-rv[rv<0].sum()) if (rv<0).any() else None,
+                           "wins":int((g.result=="TP").sum()),
+                           "losses":int(g.result.str.startswith("SL").sum()),
+                           "timeouts":int((g.result=="TIMEOUT").sum())})
+        nt["period"]=np.where(pd.to_datetime(nt.entry_time,utc=True)<pd.Timestamp("2024-01-01",tz="UTC"),
+                              "development_2021_2023","holdout_2024_2026")
+        holdout=[]
+        for period,g in nt.groupby("period"):
+            rv=g.r.dropna()
+            holdout.append({"period":period,"trades":len(g),"mean_R":float(rv.mean()),
+                            "profit_factor":float(rv[rv>0].sum()/-rv[rv<0].sum()) if (rv<0).any() else None,
+                            "wins":int((g.result=="TP").sum()),
+                            "losses":int(g.result.str.startswith("SL").sum()),
+                            "timeouts":int((g.result=="TIMEOUT").sum())})
+    else:
+        yearly=[]; holdout=[]
     # H1 feature availability audit: each hourly candle becomes usable only after its closing timestamp.
     h=d.set_index("time").resample("1h",label="left",closed="left").agg({"open":"first","high":"max","low":"min","close":"last"}).dropna()
     h["available_at"]=h.index+pd.Timedelta(hours=1)
     summary={"dataset":{"rows":len(d),"start":str(d.time.iloc[0]),"end":str(d.time.iloc[-1]),"timezone":"UTC",
                         "missing_volume":bool(d.volume.isna().all()),"median_bar_minutes":float(d.time.diff().dt.total_seconds().median()/60)},
-             "stage_counts":stages,"results":[s0,s1],
+             "stage_counts":stages,"results":[s0,s1],\n             "confirmed_nonoverlap_by_year":yearly,\n             "confirmed_nonoverlap_development_vs_holdout":holdout,
              "confirmed_monthly_all_signals":(t1.assign(month=pd.to_datetime(t1.entry_time,utc=True).dt.strftime("%Y-%m")).groupby("month").agg(signals=("r","size"),mean_R=("r","mean")).reset_index().to_dict("records") if len(t1) else []),
              "confirmed_by_side":(t1.groupby("side").agg(trades=("r","size"),mean_R=("r","mean"),wins=("result",lambda x:int((x=="TP").sum())),losses=("result",lambda x:int(x.str.startswith("SL").sum()))).reset_index().to_dict("records") if len(t1) else []),
              "method":{"pool_lookback_bars":36,"sweep":"wick beyond prior rolling extreme and close back across it",
@@ -156,7 +185,7 @@ def main():
                        "entry":"next bar open after signal close","target":"2R","horizon_bars":48,
                        "same_bar_stop_target":"stop first","spread_commission":"not modeled; OHLCV source is not broker bid/ask",
                        "h1_alignment":"hourly bar available only at its close; not used as a gating filter in this event study"},
-             "warning":"Exploratory event study, not a validated strategy. One short sample; no out-of-sample confirmation."}
+             "warning":"Exploratory historical event study only; fixed parameters; no broker-specific spread/commission/slippage; Dukascopy bid OHLC is not the user broker feed. Calendar holdout is not a guarantee of future performance."}
     (out/"summary.json").write_text(json.dumps(summary,indent=2,allow_nan=False),encoding="utf-8")
     pd.concat([t0,t1],ignore_index=True).to_csv(out/"events.csv",index=False)
     print(json.dumps(summary,indent=2,allow_nan=False))
