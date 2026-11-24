@@ -23,3 +23,9 @@ def test_stop_first_when_both_touched():
     d=pd.DataFrame({"open":[100,100],"high":[103,103],"low":[97,97]})
     z=outcome(d,1,"long",98,102,1)
     assert z["result"]=="SL_same_bar" and z["r"]==-1
+
+def test_nonoverlap_selector_uses_entry_before_prior_exit():
+    from research.event_study import select_nonoverlap
+    x=pd.DataFrame({"entry_i":[10,15,30],"exit_i":[25,28,40],"r":[1.0,-1.0,2.0]})
+    y=select_nonoverlap(x)
+    assert y.entry_i.tolist()==[10,30]
