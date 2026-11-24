@@ -20,7 +20,7 @@ Use an Ubuntu LTS VPS with a dedicated non-root account, Docker Engine + Compose
 2. Create `/opt/agent-reach/app`, `/opt/agent-reach/venv`, `/etc/agent-reach`, and `/var/lib/agent-reach`; set ownership so only the service account can write application state and data.
 3. Check out the approved project branch into `/opt/agent-reach/app`.
 4. Create the Python environment and install `agent-reach/requirements-api.txt`.
-5. Install Agent Reach from its versioned GitHub release ZIP, not from PyPI. The reviewed baseline is Agent Reach **v1.6.1**. Verify the downloaded release asset against the SHA-256 digest in `security/tool-versions.json` before installation.
+5. Install the pinned Agent Reach **v1.6.1** wheel from the official GitHub release, not from PyPI. Verify the downloaded wheel against the SHA-256 digest in `security/tool-versions.json` before installation. The CI smoke test installs this exact artifact in an isolated virtual environment.
 6. Run `agent-reach version` and `agent-reach channels`. Do not run setup for optional or experimental channels.
 7. Copy `agent-reach/config/sources.example.json` to `/etc/agent-reach/sources.json` and review each source/query. Only the public GitHub API backend is enabled by the worker. Do not add logged-in sources, cookies, session directories, or API keys.
 8. Install the systemd unit files from `deploy/systemd`, then run one controlled worker invocation and inspect its JSON output and logs before enabling the timer.
