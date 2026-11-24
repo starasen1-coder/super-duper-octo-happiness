@@ -46,6 +46,12 @@ chown -R agent-reach:agent-reach "$APP_DIR"
 sudo -u agent-reach python3 -m venv "$VENV_DIR"
 sudo -u agent-reach "$VENV_DIR/bin/python" -m pip install --upgrade pip
 sudo -u agent-reach "$VENV_DIR/bin/pip" install -r "$APP_DIR/agent-reach/requirements-api.txt"
+curl --fail --location --silent --show-error \
+  https://github.com/Panniantong/Agent-Reach/releases/download/v1.6.1/agent_reach-1.6.1-py3-none-any.whl \
+  --output /tmp/agent_reach-1.6.1-py3-none-any.whl
+echo "6a1085cae53118c5f1271ab24041e55ec17c509932612b919208f04d10183acb  /tmp/agent_reach-1.6.1-py3-none-any.whl" | sha256sum --check -
+sudo -u agent-reach "$VENV_DIR/bin/pip" install /tmp/agent_reach-1.6.1-py3-none-any.whl
+rm -f /tmp/agent_reach-1.6.1-py3-none-any.whl
 
 if [[ ! -f "$CONFIG_DIR/sources.json" ]]; then
   install -o agent-reach -g agent-reach -m 0640     "$APP_DIR/agent-reach/config/sources.example.json"     "$CONFIG_DIR/sources.json"
