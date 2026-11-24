@@ -99,6 +99,8 @@ jobs:
         env:
           PYTHONPATH: visual-reports
         run: python -m pytest visual-reports/lemo_opuscar/tests -q
+      - name: Validate VPS bootstrap script syntax
+        run: bash -n deploy/bootstrap-ubuntu.sh
       - name: Verify SQLite backup script
         run: |
           python - <<'PY'
