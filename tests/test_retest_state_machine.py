@@ -1,6 +1,6 @@
 import pandas as pd
 
-from research.strategy import build_retest_setups
+import research.strategy as strategy
 
 
 def _fixture(retest_index: int) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -30,8 +30,9 @@ def _fixture(retest_index: int) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def test_long_setup_requires_sweep_impulse_bos_ob_retest_then_next_bar_entry():
+    assert callable(getattr(strategy, "build_retest_setups", None))
     m5, h1 = _fixture(retest_index=49)
-    setups = build_retest_setups(
+    setups = strategy.build_retest_setups(
         m5, h1,
         liquidity_lookback=36,
         structure_lookback=6,
@@ -54,8 +55,9 @@ def test_long_setup_requires_sweep_impulse_bos_ob_retest_then_next_bar_entry():
 
 
 def test_h1_break_is_not_used_before_hourly_candle_close():
+    assert callable(getattr(strategy, "build_retest_setups", None))
     m5, h1 = _fixture(retest_index=46)
-    setups = build_retest_setups(
+    setups = strategy.build_retest_setups(
         m5, h1,
         liquidity_lookback=36,
         structure_lookback=6,
