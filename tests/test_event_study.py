@@ -29,3 +29,14 @@ def test_nonoverlap_selector_uses_entry_before_prior_exit():
     x=pd.DataFrame({"entry_i":[10,15,30],"exit_i":[25,28,40],"r":[1.0,-1.0,2.0]})
     y=select_nonoverlap(x)
     assert y.entry_i.tolist()==[10,30]
+
+def test_load_data_parses_unix_milliseconds_as_utc(tmp_path):
+    from research.event_study import load_data
+    p=tmp_path/"dukascopy.csv"
+    p.write_text(
+        "timestamp,open,high,low,close,volume\n"
+        "1609459200000,1900,1902,1899,1901,1.2\n",
+        encoding="utf-8"
+    )
+    d=load_data(str(p))
+    assert d.time.iloc[0] == pd.Timestamp("2021-01-01 00:00:00", tz="UTC")
