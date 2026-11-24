@@ -62,11 +62,31 @@ def normalize_spread(df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("spread contains negative values")
     return out.sort_values("time").drop_duplicates("time", keep="last").reset_index(drop=True)
 
-def merge_spread(ohlcv: pd.DataFrame, spread: pd.DataFrame) -> pd.DataFrame:
-    """As-of merge: each bar receives the latest known spread, never a future value."""
+def merge_spread(
+    ohlcv: pd.DataFrame,
+    spread: pd.DataFrame,
+    max_age: str | pd.Timedelta = "5min",
+) -> pd.DataFrame:
+    """Attach only a recent, already-known spread quote to each price bar.
+
+    The default 5-minute freshness bound is appropriate for M5 inputs. Callers
+    using another timeframe must choose an explicit, suitable max_age.
+    """
     price = normalize_ohlcv(ohlcv)
     spr = normalize_spread(spread)
-    out = pd.merge_asof(price.sort_values("time"), spr.sort_values("time"), on="time", direction="backward")
+    tolerance = pd.Timedelta(max_age)
+    if tolerance <= pd.Timedelta(0):
+        raise ValueError("max_age must be positive")
+    out = pd.merge_asof(
+        price.sort_values("time"),
+        spr.sort_values("time"),
+        on="time",
+        direction="backward",
+        tolerance=tolerance,
+    )
     if out["spread"].isna().any():
-        raise ValueError("spread coverage does not start early enough for all price bars")
+        raise ValueError(
+            "missing or stale spread quote: spread coverage is incomplete "
+            f"within max_age={tolerance}"
+        )
     return out
