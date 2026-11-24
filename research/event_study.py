@@ -17,7 +17,10 @@ def load_data(path: str) -> pd.DataFrame:
     if not p.exists():
         p.parent.mkdir(parents=True,exist_ok=True)
         urllib.request.urlretrieve(URL,p)
-    d=pd.read_csv(p)
+    if p.suffix.lower()==".jsonl":
+        d=pd.read_json(p,lines=True)
+    else:
+        d=pd.read_csv(p)
     d.columns=[c.strip().lower().replace(" ","_") for c in d.columns]
     time_col=next((c for c in ("datetime","timestamp","date_time","time","date") if c in d.columns),None)
     if time_col is None: raise ValueError(f"No timestamp column: {list(d.columns)}")
