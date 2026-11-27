@@ -62,16 +62,28 @@ jobs:
         run: |
           git clone --no-checkout https://github.com/lemomo-ai/lemo-opuscar.git /tmp/lemo-opuscar
           git -C /tmp/lemo-opuscar checkout --detach 2ef41cca9a9330c96c00ec0d8d40807b4b062bb4
-      - name: Scan LEMO Opuscar skill without LLM
-        continue-on-error: true
+      - name: Scan LEMO Opuscar skill without LLM and assert blocking evidence
         env:
           PYTHONPATH: .
         run: |
+          set +e
           python security/skillspector/scan.py \
             --target /tmp/lemo-opuscar/plugin/skills/lemo-opuscar \
             --revision 2ef41cca9a9330c96c00ec0d8d40807b4b062bb4 \
             --scanner-version 2.13.6 \
             --output-dir /tmp/lemo-skillspector-report
+          scan_status=$?
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("/tmp/lemo-skillspector-report/scan-manifest.json").read_text())
+          assert manifest["scanner_exit_code"] == 0, manifest
+          assert manifest["decision"] == "block", manifest
+          assert manifest["report_sha256"], manifest
+          assert any("HIGH" in reason for reason in manifest["reasons"]), manifest
+          PY
+          test "$scan_status" -eq 1
       - name: Preserve scanner evidence
         if: always()
         uses: actions/upload-artifact@v4
