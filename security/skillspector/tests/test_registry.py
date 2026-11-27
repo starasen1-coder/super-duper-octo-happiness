@@ -94,3 +94,35 @@ def test_approval_timestamp_must_include_timezone():
     )
     assert allowed is False
     assert any("timestamp" in reason for reason in reasons)
+
+
+def test_admission_cli_denies_unknown_extension(tmp_path):
+    import json
+    from security.skillspector.require_approved import main
+
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(json.dumps({"schema_version": 1, "extensions": []}), encoding="utf-8")
+    result = main([
+        "--registry", str(registry_path),
+        "--extension-id", "unknown",
+        "--repository", "https://github.com/example/unknown",
+        "--revision", "a" * 40,
+        "--report-sha256", "b" * 64,
+    ])
+    assert result == 1
+
+
+def test_admission_cli_allows_only_matching_approved_record(tmp_path):
+    import json
+    from security.skillspector.require_approved import main
+
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(json.dumps(registry()), encoding="utf-8")
+    result = main([
+        "--registry", str(registry_path),
+        "--extension-id", "safe-research-skill",
+        "--repository", "https://github.com/example/safe-research-skill",
+        "--revision", "a" * 40,
+        "--report-sha256", "b" * 64,
+    ])
+    assert result == 0
