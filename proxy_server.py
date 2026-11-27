@@ -1,27 +1,32 @@
-"""Локальный прокси: MT5-советник -> этот сервер -> модель Claude -> JSON-решение.
+"""Local bridge: MT5 EA -> OpenAI-compatible LLM endpoint -> JSON decision.
 
-Запуск:  uvicorn proxy_server:app --host 127.0.0.1 --port 8000
-Ключ API берётся из .env (ANTHROPIC_API_KEY), в советнике его нет.
+The endpoint is configured through OPENAI_BASE_URL and OPENAI_API_KEY.
+For research, keep LLM filtering optional; deterministic EA rules remain the gate.
 """
 import json
 import os
 
-from anthropic import Anthropic
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from openai import OpenAI
 from pydantic import BaseModel
 
 load_dotenv()
 
-MODEL = os.getenv("MODEL", "claude-sonnet-4-6")
-client = Anthropic(timeout=15.0, max_retries=0)
+BASE_URL = os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:3001/v1")
+API_KEY = os.getenv("OPENAI_API_KEY", "")
+MODEL = os.getenv("MODEL", "auto")
+
+client = OpenAI(base_url=BASE_URL, api_key=API_KEY or "local", timeout=15.0, max_retries=0)
 app = FastAPI()
 
 SYSTEM = (
     "Ты помощник-фильтр для торгового советника по XAUUSD. "
-    "Тебе приходит JSON: сигнал советника (signal), цена, Volume Profile "
+    "Тебе приходит JSON: сигнал детерминированного советника, цена, Volume Profile "
     "(poc, vah, val), сессия и последние свечи [open, high, low, close, tick_volume]. "
-    "Оцени, стоит ли подтвердить сигнал. Отвечай ТОЛЬКО JSON без пояснений вокруг: "
+    "Нельзя создавать новый сигнал или отменять обязательные структурные правила. "
+    "Оцени только подтверждение уже сформированного setup. "
+    "Отвечай ТОЛЬКО JSON: "
     '{"bias":"long|short|none","confidence":0.0-1.0,"reason":"коротко"}'
 )
 
@@ -46,7 +51,10 @@ def _parse(text: str) -> dict:
     start, end = text.find("{"), text.rfind("}")
     if start < 0 or end < 0:
         return _fallback("no json")
-    data = json.loads(text[start : end + 1])
+    try:
+        data = json.loads(text[start : end + 1])
+    except json.JSONDecodeError:
+        return _fallback("invalid json")
     bias = str(data.get("bias", "none")).lower()
     if bias not in ("long", "short", "none"):
         bias = "none"
@@ -60,20 +68,23 @@ def _parse(text: str) -> dict:
 @app.post("/decide")
 def decide(s: Snapshot) -> dict:
     try:
-        msg = client.messages.create(
+        response = client.chat.completions.create(
             model=MODEL,
+            temperature=0,
             max_tokens=300,
-            system=SYSTEM,
-            messages=[{"role": "user", "content": s.model_dump_json()}],
+            messages=[
+                {"role": "system", "content": SYSTEM},
+                {"role": "user", "content": s.model_dump_json()},
+            ],
         )
-        text = "".join(b.text for b in msg.content if b.type == "text")
+        text = response.choices[0].message.content or ""
         result = _parse(text)
-    except Exception as e:  # сеть, лимиты, невалидный JSON
+    except Exception as e:
         result = _fallback(f"error: {type(e).__name__}")
-    print(s.symbol, s.timeframe, s.signal, "->", result, flush=True)  # лог решений
+    print(s.symbol, s.timeframe, s.signal, "->", result, flush=True)
     return result
 
 
 @app.get("/health")
 def health() -> dict:
-    return {"ok": True, "model": MODEL}
+    return {"ok": True, "model": MODEL, "base_url": BASE_URL}
