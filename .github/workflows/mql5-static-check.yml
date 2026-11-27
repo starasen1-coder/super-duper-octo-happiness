@@ -1,0 +1,29 @@
+name: MQL5 source checks
+
+on:
+  push:
+    branches:
+      - fix/smc-trend-follower-v1-1
+  pull_request:
+    branches:
+      - main
+      - fix/smc-trend-follower-v1-1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check MQL5 source
+        run: python scripts/check_mql5_static.py MQL5/Experts/SMC_Trend_Follower_Final_v1_2.mq5
