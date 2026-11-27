@@ -12,6 +12,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--registry", type=Path, default=Path("security/skillspector/approved-extensions.json"))
     parser.add_argument("--extension-id", required=True)
+    parser.add_argument("--repository", required=True)
     parser.add_argument("--revision", required=True)
     parser.add_argument("--report-sha256", required=True)
     parser.add_argument("--scanner-version", default=PINNED_SCANNER_VERSION)
@@ -22,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
         print("DENY: approval registry is unavailable or malformed")
         return 1
     allowed, reasons = evaluate_extension(
-        registry, args.extension_id, args.revision, args.report_sha256, args.scanner_version
+        registry, args.extension_id, args.repository, args.revision, args.report_sha256, args.scanner_version
     )
     if not allowed:
         for reason in reasons:
