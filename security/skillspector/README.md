@@ -24,7 +24,7 @@ Use the `SkillSpector security gate` GitHub Actions workflow with:
 - `target_revision`: exact 40-character lowercase commit SHA;
 - `target_subdirectory`: the skill directory within that checkout, or `.`.
 
-The remote scanner fetches that exact commit, verifies the checked-out SHA, rejects path traversal, and runs SkillSpector with `--no-llm`. Candidate content is never installed or executed. The job has read-only repository permissions, no secrets, and preserves its report as an artifact. A review/block result fails the scan job; inspect the artifact before making any decision.
+The remote scanner fetches that exact commit, verifies the checked-out SHA, rejects path traversal, and runs SkillSpector with `--no-llm`. The LEMO workflow step now explicitly asserts successful scanner execution, a `block` decision, a report digest, and the expected HIGH finding instead of silently tolerating any scanner error. Candidate content is never installed or executed. The job has read-only repository permissions, no secrets, and preserves its report as an artifact. A review/block result fails the scan job; inspect the artifact before making any decision.
 
 ## Extension admission registry
 
@@ -37,7 +37,7 @@ The remote scanner fetches that exact commit, verifies the checked-out SHA, reje
 
 Before enabling an extension, obtain the scan artifact, review the source and requested permissions, and add an approval record through a reviewed change. Use `python security/skillspector/require_approved.py --extension-id <id> --repository https://github.com/<owner>/<repo> --revision <commit> --report-sha256 <digest>` as the admission check. The command exits non-zero unless every field matches exactly. Any source revision or report change requires a new scan and approval.
 
-The registry check is a local admission control, not a substitute for repository governance. Configure GitHub branch protection/rulesets outside this code so changes to `security/skillspector/approved-extensions.json` require an independent security review. This repository change does not claim that such rules are enabled.
+The registry check is a local admission control, not a substitute for repository governance. Configure GitHub branch protection/rulesets outside this code so changes to `security/skillspector/approved-extensions.json` require an independent security review. The GitHub API returned no repository rulesets; branch-protection details could not be read with the connected integration's permissions. Therefore independent approval enforcement is not verified and must be configured by the repository owner before adding any extension.
 
 ## Scope and limits
 
