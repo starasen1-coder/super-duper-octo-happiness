@@ -1,0 +1,13 @@
+{
+  "symbol": "XAUUSD",
+  "period": "M5",
+  "model": "real_ticks",
+  "deposit": 10000,
+  "currency": "USD",
+  "leverage": 10,
+  "risk_percent": 0.5,
+  "is": {"from": "2022.01.01", "to": "2024.12.31"},
+  "oos": {"from": "2025.01.01", "to": "2026.01.01"},
+  "ea": "XAUUSD_Liquidity_Retest_v1",
+  "inputs": {"InpEntryTF": "PERIOD_M5", "InpStructureTF": "PERIOD_H1", "InpRiskPercent": 0.5, "InpMinRR": 2.0, "InpOnePosition": true}
+}
