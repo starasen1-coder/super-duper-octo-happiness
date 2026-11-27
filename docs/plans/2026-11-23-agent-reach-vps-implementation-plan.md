@@ -259,3 +259,31 @@ These decisions affect production deployment, not the implementation of the isol
 7. Whether the deployment should use a separate subdomain and TLS termination, or remain private-only.
 
 No VPS deployment, secret provisioning, authenticated-source enablement, or downstream MT5 integration is included in these implementation tasks.
+
+
+## Task 5: Remote candidate scanning and exact extension admission
+
+**Files:**
+- Create: `security/skillspector/registry.py`
+- Create: `security/skillspector/approved-extensions.json`
+- Create: `security/skillspector/require_approved.py`
+- Create: `security/skillspector/scan_remote.py`
+- Create: `security/skillspector/tests/test_registry.py`
+- Create: `security/skillspector/tests/test_scan_remote.py`
+- Modify: `.github/workflows/skillspector-scan.yml`
+- Modify: `security/skillspector/README.md`, root `README.md`
+
+**Behavior:**
+- Unknown extensions are denied by default; the initial approval registry is empty.
+- Admission requires exact match on extension ID, canonical GitHub repository, immutable commit SHA, pinned scanner version, report SHA-256, human approver/timestamp, and explicit non-empty permissions.
+- Any changed commit or report requires a new scan and approval.
+- The remote scan workflow accepts only `owner/repository`, a 40-character commit SHA, and a relative subdirectory; it fetches and verifies the exact commit, rejects path traversal, and invokes SkillSpector with no LLM.
+- Candidate source is never installed or executed by the scan workflow. CI has read-only contents permission and no production secrets.
+- Human review remains mandatory. Repository branch protection/rulesets are an external prerequisite and are not represented as enabled by this implementation.
+
+**Verification evidence:**
+- Run 46066378515: SkillSpector policy workflow and the remote candidate scan both completed successfully; candidate report artifact was produced.
+- Run 46066269904: Agent Reach integration job completed successfully, including the extended SkillSpector tests.
+- Run 46066378445: CLI-specific tests were added and the SkillSpector policy step passed; wait for overall workflow completion before claiming full job success.
+
+**Limits:** This is static SkillSpector analysis. It is not a runtime MCP protocol test, Python dependency vulnerability audit, agent sandbox, or MT5/trading strategy validation. The registry remains empty until a specific candidate receives human review.
