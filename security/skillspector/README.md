@@ -13,7 +13,7 @@ The scanner is installed and run only in an isolated CI job. It receives no prod
 5. A human must approve the exact repository, commit, report, and required permissions before any installation.
 6. Do not install a package solely because its scanner report says `pass`.
 
-The CI workflow scans only the harmless fixture in this repository. It demonstrates the scanner and policy integration; it does not approve any third-party skill.
+On every relevant push, CI scans the harmless in-repository fixture and verifies policy tests. A separate on-demand workflow-dispatch job scans a selected public GitHub candidate at its immutable commit; it does not approve or install that candidate.
 
 The scanner wrapper and policy are Python modules under the `security.skillspector` package. The CI workflow verifies the wheel digest before installation and runs the scanner with no LLM provider credentials.
 
@@ -41,4 +41,4 @@ The registry check is a local admission control, not a substitute for repository
 
 ## Scope and limits
 
-SkillSpector is static analysis, not a proof of safety, a runtime sandbox, or a trading-strategy validator. The current workflow scans an explicitly supplied public GitHub candidate; it does not crawl every public repository or automatically install extensions. Private repositories and authenticated sources are not supported by this workflow. The first rollout has no approved third-party extensions.
+SkillSpector is static analysis, not a proof of safety, a runtime sandbox, or a trading-strategy validator. It does not validate live MCP protocol behavior, Python package vulnerability databases, agent runtime permissions, or broker/MT5 behavior; those require separate controls and tests. The current workflow scans an explicitly supplied public GitHub candidate; it does not crawl every public repository or automatically install extensions. Private repositories and authenticated sources are not supported by this workflow. The first rollout has no approved third-party extensions.
