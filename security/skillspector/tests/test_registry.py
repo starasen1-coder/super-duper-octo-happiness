@@ -68,3 +68,29 @@ def test_different_repository_cannot_reuse_an_approved_id():
     )
     assert allowed is False
     assert any("repository" in reason for reason in reasons)
+
+
+def test_checked_in_empty_registry_denies_unlisted_extension():
+    from pathlib import Path
+    import json
+
+    empty_registry = json.loads(
+        Path("security/skillspector/approved-extensions.json").read_text(encoding="utf-8")
+    )
+    allowed, reasons = evaluate_extension(
+        empty_registry, "safe-research-skill",
+        "https://github.com/example/safe-research-skill",
+        "a" * 40, "b" * 64, "2.13.6"
+    )
+    assert allowed is False
+    assert reasons
+
+
+def test_approval_timestamp_must_include_timezone():
+    allowed, reasons = evaluate_extension(
+        registry(approved_entry(approved_at="2026-11-27T12:00:00")),
+        "safe-research-skill", "https://github.com/example/safe-research-skill",
+        "a" * 40, "b" * 64, "2.13.6"
+    )
+    assert allowed is False
+    assert any("timestamp" in reason for reason in reasons)
