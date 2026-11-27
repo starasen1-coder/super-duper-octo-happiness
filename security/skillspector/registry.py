@@ -18,14 +18,18 @@ def _valid_repository(value: object) -> bool:
     if parsed.scheme != "https" or parsed.netloc != "github.com" or parsed.query or parsed.fragment:
         return False
     parts = parsed.path.strip("/").split("/")
-    return len(parts) == 2 and all(re.fullmatch(r"[A-Za-z0-9_.-]+", part) for part in parts)
+    return len(parts) == 2 and parsed.path == f"/{parts[0]}/{parts[1]}" and all(
+        re.fullmatch(r"[A-Za-z0-9_.-]+", part) for part in parts
+    )
 
 
 def _valid_timestamp(value: object) -> bool:
     if not isinstance(value, str) or not value:
         return False
     try:
-        datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return False
     except ValueError:
         return False
     return True
