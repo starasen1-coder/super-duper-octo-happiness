@@ -84,7 +84,7 @@ jobs:
           retention-days: 14
 
   scan-candidate:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -105,9 +105,9 @@ jobs:
       - name: Scan immutable public GitHub candidate without executing it
         env:
           PYTHONPATH: .
-          CANDIDATE_REPOSITORY: ${{ inputs.target_repository }}
-          CANDIDATE_REVISION: ${{ inputs.target_revision }}
-          CANDIDATE_SUBDIRECTORY: ${{ inputs.target_subdirectory }}
+          CANDIDATE_REPOSITORY: ${{ github.event.inputs.target_repository || github.repository }}
+          CANDIDATE_REVISION: ${{ github.event.inputs.target_revision || github.sha }}
+          CANDIDATE_SUBDIRECTORY: ${{ github.event.inputs.target_subdirectory || 'security/skillspector/fixtures/benign-skill' }}
         run: |
           python security/skillspector/scan_remote.py \
             --repository "$CANDIDATE_REPOSITORY" \
