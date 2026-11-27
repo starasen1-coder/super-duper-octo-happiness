@@ -1,9 +1,9 @@
 name: ML research tests
 on:
   push:
-    branches: [feature/xauusd-liquidity-retest-v1]
+    branches: [feature/xauusd-liquidity-retest-v1, feature/xauusd-m5-2015-2025-history]
   pull_request:
-    branches: [main]
+    branches: [main, feature/xauusd-liquidity-retest-v1]
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -28,19 +28,68 @@ jobs:
         run: python -m compileall -q ml tests
       - name: Run tests
         run: npm run test:python
-      - name: Download public XAUUSD M5 2025 archive
+      - name: Download public XAUUSD M5 archives 2015-2025
         if: github.event_name == 'push'
-        run: python -m ml.download_evtradelabs --year 2025 --output data/XAUUSD_M5_BID_ASK_2025.csv
-      - name: Validate real archive and produce quality report
+        run: python -m ml.download_evtradelabs --from-year 2015 --to-year 2025 --output data/XAUUSD_M5_BID_ASK_2015_2025.csv
+      - name: Validate combined archive and write quality reports
         if: github.event_name == 'push'
-        run: python -m ml.validate_market_data --csv data/XAUUSD_M5_BID_ASK_2025.csv --json data/XAUUSD_M5_quality_2025.json
-      - name: Upload CSV and quality report
+        run: >-
+          python -m ml.validate_market_data
+          --csv data/XAUUSD_M5_BID_ASK_2015_2025.csv
+          --json data/XAUUSD_M5_quality_2015_2025.json
+          --markdown data/quality_report_2015_2025.md
+          --expected-from-year 2015
+          --expected-to-year 2025
+      - name: Run offline strategy diagnostic
+        if: github.event_name == 'push'
+        run: >-
+          python -m ml.strategy_diagnostic
+          --csv data/XAUUSD_M5_BID_ASK_2015_2025.csv
+          --output-dir reports/xauusd_strategy_2015_2025
+      - name: Analyze losing-trade scenarios
+        if: github.event_name == 'push'
+        run: >-
+          python -m ml.analyze_trade_outcomes
+          --csv data/XAUUSD_M5_BID_ASK_2015_2025.csv
+          --output-dir reports/xauusd_loss_analysis_2015_2025
+      - name: Test fixed exit-target sensitivity
+        if: github.event_name == 'push'
+        run: >-
+          python -m ml.rr_sensitivity
+          --csv data/XAUUSD_M5_BID_ASK_2015_2025.csv
+          --output-dir reports/xauusd_rr_sensitivity_2015_2025
+      - name: Upload combined CSV and quality reports
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: xauusd-m5-2025-data-quality
+          name: xauusd-m5-2015-2025-data-quality
           path: |
-            data/XAUUSD_M5_BID_ASK_2025.csv
-            data/XAUUSD_M5_quality_2025.json
+            data/XAUUSD_M5_BID_ASK_2015_2025.csv
+            data/XAUUSD_M5_quality_2015_2025.json
+            data/quality_report_2015_2025.md
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload strategy diagnostic
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-m5-strategy-diagnostic-2015-2025
+          path: reports/xauusd_strategy_2015_2025
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload loss analysis
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-loss-analysis-2015-2025
+          path: reports/xauusd_loss_analysis_2015_2025
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload RR sensitivity
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-rr-sensitivity-2015-2025
+          path: reports/xauusd_rr_sensitivity_2015_2025
           if-no-files-found: error
           retention-days: 14
