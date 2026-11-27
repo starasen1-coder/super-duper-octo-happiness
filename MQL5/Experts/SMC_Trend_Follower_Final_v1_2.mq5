@@ -39,7 +39,7 @@ int      g_atr    = INVALID_HANDLE;
 CTrade   g_trade;
 datetime g_lastBarTime = 0;
 datetime g_dayStartTime = 0;
-double   g_dayStartBalance = 0.0;
+double   g_dayStartEquity  = 0.0;
 int      g_consecutiveLosses = 0;
 int      g_cooldownBarsRemaining = 0;
 
@@ -306,43 +306,18 @@ double CalculateVolumeByRisk(const bool isBuy, const double entry, const double 
 //+------------------------------------------------------------------+
 bool DailyGuardAllowed()
 {
-   const datetime now = TimeCurrent();
-   const datetime today = StringToTime(TimeToString(now, TIME_DATE));
-   if(today != g_dayStartTime)
+   // Equity baseline is updated from OnTick at the start of each broker day.
+   // Equity-based daily guard includes floating P/L and closed results across the account.
+   // It blocks new entries; it does not forcibly close open positions.
+   if(InpMaxDailyLossPercent > 0.0 && g_dayStartEquity > 0.0)
    {
-      g_dayStartTime = today;
-      g_dayStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
-      g_consecutiveLosses = 0; // Daily lockout resets on the next trading day.
-   }
-
-   if(InpMaxDailyLossPercent > 0.0 && g_dayStartBalance > 0.0)
-   {
-      if(!HistorySelect(g_dayStartTime, now))
+      const double currentEquity = AccountInfoDouble(ACCOUNT_EQUITY);
+      const double dailyEquityChange = currentEquity - g_dayStartEquity;
+      const double maxLossMoney = g_dayStartEquity * InpMaxDailyLossPercent / 100.0;
+      if(dailyEquityChange <= -maxLossMoney)
       {
-         Print("Daily guard: HistorySelect failed; entry blocked for safety.");
-         return false;
-      }
-      double dailyNet = 0.0;
-      for(int i = 0; i < HistoryDealsTotal(); ++i)
-      {
-         const ulong deal = HistoryDealGetTicket(i);
-         if(deal == 0)
-            continue;
-         if(HistoryDealGetString(deal, DEAL_SYMBOL) != _Symbol ||
-            (ulong)HistoryDealGetInteger(deal, DEAL_MAGIC) != InpMagic)
-            continue;
-         const long entryType = HistoryDealGetInteger(deal, DEAL_ENTRY);
-         if(entryType != DEAL_ENTRY_OUT && entryType != DEAL_ENTRY_OUT_BY)
-            continue;
-         dailyNet += HistoryDealGetDouble(deal, DEAL_PROFIT)
-                   + HistoryDealGetDouble(deal, DEAL_SWAP)
-                   + HistoryDealGetDouble(deal, DEAL_COMMISSION);
-      }
-      const double maxLossMoney = g_dayStartBalance * InpMaxDailyLossPercent / 100.0;
-      if(dailyNet <= -maxLossMoney)
-      {
-         PrintFormat("Daily loss limit reached: %.2f <= -%.2f. New entries blocked.",
-                     dailyNet, maxLossMoney);
+         PrintFormat("Daily equity loss limit reached: change=%.2f <= -%.2f. New entries blocked.",
+                     dailyEquityChange, maxLossMoney);
          return false;
       }
    }
@@ -446,7 +421,7 @@ int OnInit()
    g_trade.SetTypeFillingBySymbol(_Symbol);
    g_lastBarTime = iTime(_Symbol, PERIOD_M15, 0);
    g_dayStartTime = StringToTime(TimeToString(TimeCurrent(), TIME_DATE));
-   g_dayStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+   g_dayStartEquity = AccountInfoDouble(ACCOUNT_EQUITY);
 
    Print("SMC_Trend_Follower_Final_v1_2 initialized on ", _Symbol,
          ". Signals are trend/pullback based; BOS/OB/FVG logic is not implemented.");
@@ -496,6 +471,16 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
 //+------------------------------------------------------------------+
 void OnTick()
 {
+   // Reset the daily equity baseline at the broker's day boundary, even while a position is open.
+   const datetime now = TimeCurrent();
+   const datetime today = StringToTime(TimeToString(now, TIME_DATE));
+   if(today != g_dayStartTime)
+   {
+      g_dayStartTime = today;
+      g_dayStartEquity = AccountInfoDouble(ACCOUNT_EQUITY);
+      g_consecutiveLosses = 0;
+   }
+
    // Manage existing positions on every tick, independently of new-bar entries.
    ManageTrailingStops();
 
