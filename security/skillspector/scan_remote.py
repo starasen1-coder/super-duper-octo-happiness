@@ -70,6 +70,10 @@ def main(argv: list[str] | None = None) -> int:
             "--output-dir", str(args.output_dir),
         ]
         result = _run(command, timeout=660)
+        if result.stdout:
+            print(result.stdout, end="")
+        if result.stderr:
+            print(result.stderr, file=sys.stderr, end="")
         return result.returncode
 
 
