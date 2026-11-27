@@ -34,6 +34,7 @@ def _valid_timestamp(value: object) -> bool:
 def evaluate_extension(
     registry: object,
     extension_id: str,
+    repository: str,
     revision: str,
     report_sha256: str,
     scanner_version: str = PINNED_SCANNER_VERSION,
@@ -47,6 +48,8 @@ def evaluate_extension(
         return False, ["registry extensions must be a list"]
     if not isinstance(extension_id, str) or not _ID_RE.fullmatch(extension_id):
         return False, ["extension identifier is invalid"]
+    if not _valid_repository(repository):
+        return False, ["requested repository must be a canonical HTTPS github.com owner/repository URL"]
     if not _COMMIT_RE.fullmatch(revision or ""):
         return False, ["requested revision must be a 40-character lowercase Git commit"]
     if not _SHA256_RE.fullmatch(report_sha256 or ""):
@@ -68,6 +71,8 @@ def evaluate_extension(
         return False, ["approval record is missing: " + ", ".join(missing)]
     if not _valid_repository(item["repository"]):
         reasons.append("approval repository must be a canonical HTTPS github.com owner/repository URL")
+    if item["repository"] != repository:
+        reasons.append("requested repository does not match the approved repository")
     if item["revision"] != revision:
         reasons.append("requested Git revision does not match the approved revision")
     if item["report_sha256"] != report_sha256:
