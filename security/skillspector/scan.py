@@ -9,7 +9,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-PINNED_VERSION = "2.13.6"
+PINNED_VERSION = "2.13.7"
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
