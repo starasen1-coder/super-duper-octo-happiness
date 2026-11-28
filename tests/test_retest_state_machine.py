@@ -12,6 +12,7 @@ def _fixture(retest_index: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     })
     m5.loc[40, ["open", "high", "low", "close"]] = [100.05, 100.1, 99.0, 100.0]
     m5.loc[42, ["open", "high", "low", "close"]] = [100.0, 101.3, 99.9, 101.2]
+    m5.loc[46, ["open", "high", "low", "close"]] = [100.0, 102.5, 99.9, 100.1]
     m5.loc[retest_index, ["open", "high", "low", "close"]] = [100.05, 100.4, 100.0, 100.3]
     h1 = pd.DataFrame({
         "time": pd.date_range("2026-01-01T00:00:00Z", periods=6, freq="h"),
@@ -41,7 +42,7 @@ def test_long_setup_requires_sweep_impulse_bos_ob_retest_then_next_bar_entry():
     assert setup["entry_index"] == 50
     assert setup["entry_price"] == 100.0
     assert setup["stop_price"] == 99.0
-    assert setup["target_price"] == 102.0
+    assert setup["target_price"] == 102.5
 
 
 def test_short_setup_is_the_directional_mirror_of_long_setup():
@@ -53,6 +54,7 @@ def test_short_setup_is_the_directional_mirror_of_long_setup():
     })
     m5.loc[40, ["open", "high", "low", "close"]] = [99.95, 101.0, 99.9, 100.0]
     m5.loc[42, ["open", "high", "low", "close"]] = [100.0, 100.1, 98.7, 98.8]
+    m5.loc[46, ["open", "high", "low", "close"]] = [98.0, 100.1, 97.5, 98.0]
     m5.loc[49, ["open", "high", "low", "close"]] = [100.0, 100.0, 99.5, 99.7]
     h1 = pd.DataFrame({
         "time": pd.date_range("2026-01-01T00:00:00Z", periods=6, freq="h"),
@@ -75,7 +77,7 @@ def test_short_setup_is_the_directional_mirror_of_long_setup():
     assert setup["retest_index"] == 49
     assert setup["entry_index"] == 50
     assert setup["stop_price"] == 101.0
-    assert setup["target_price"] == 98.0
+    assert setup["target_price"] == 97.5
 
 
 def test_h1_break_is_not_used_before_hourly_candle_close():
