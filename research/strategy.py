@@ -253,6 +253,7 @@ def build_retest_setups(
                     lookback=target_lookback,
                     pivot_left=target_pivot_left,
                     pivot_right=target_pivot_right,
+                    after_index=impulse_idx,
                 )
                 if target_price is None:
                     continue
