@@ -11,7 +11,7 @@
   "skillspector": {
     "version": "2.13.7",
     "asset": "skillspector-2.13.7-py3-none-any.whl",
-    "url": "https://github.com/NVIDIA/SkillSpector/releases/download/v2.13.6/skillspector-2.13.7-py3-none-any.whl",
+    "url": "https://github.com/NVIDIA/SkillSpector/releases/download/v2.13.7/skillspector-2.13.7-py3-none-any.whl",
     "sha256": "e2356aa11f0d484f789543f25da6208fe2408641c8b16e7b59bc6600c5c39ffb",
     "license": "Apache-2.0"
   },
