@@ -1,9 +1,9 @@
 name: Research tests
 on:
   push:
-    branches: [trader-skill-pipeline]
+    branches: [trader-skill-pipeline, research/xauusd-structural-liquidity-targets]
   pull_request:
-    branches: [main]
+    branches: [main, trader-skill-pipeline]
 jobs:
   pytest:
     runs-on: ubuntu-latest
