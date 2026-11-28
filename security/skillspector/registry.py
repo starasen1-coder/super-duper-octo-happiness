@@ -5,7 +5,7 @@ import re
 from datetime import datetime
 from urllib.parse import urlparse
 
-PINNED_SCANNER_VERSION = "2.13.6"
+PINNED_SCANNER_VERSION = "2.13.7"
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
