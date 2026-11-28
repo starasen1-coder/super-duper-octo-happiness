@@ -6,6 +6,7 @@ import pandas as pd
 
 from .order_flow import order_flow_features, order_flow_confirmation
 from .quote_liquidity import merge_quote_liquidity
+from .structural_targets import nearest_confirmed_liquidity_target
 
 
 def _atr(df: pd.DataFrame, period: int) -> pd.Series:
@@ -97,6 +98,9 @@ def build_retest_setups(
     retest_window: int = 6,
     h1_structure_lookback: int = 5,
     risk_reward: float = 2.0,
+    target_lookback: int = 288,
+    target_pivot_left: int = 2,
+    target_pivot_right: int = 2,
 ) -> pd.DataFrame:
     """Build sequential sweep -> displacement/BOS -> OB retest setups.
 
@@ -109,6 +113,8 @@ def build_retest_setups(
         raise ValueError("lookbacks and windows must be >= 2")
     if impulse_atr <= 0 or not 0 < body_ratio_min <= 1 or risk_reward <= 0:
         raise ValueError("impulse_atr/risk_reward must be positive and body_ratio_min in (0, 1]")
+    if target_lookback < 3 or target_pivot_left < 1 or target_pivot_right < 1:
+        raise ValueError("target lookback/pivot widths are invalid")
     required = {"time", "open", "high", "low", "close"}
     if not required.issubset(m5.columns) or not required.issubset(h1.columns):
         raise ValueError("M5 and H1 data require time/open/high/low/close columns")
@@ -242,10 +248,17 @@ def build_retest_setups(
                 risk = entry_price - stop_price if side == 1 else stop_price - entry_price
                 if risk <= 0:
                     continue
-                target_price = (
-                    entry_price + risk_reward * risk
-                    if side == 1 else entry_price - risk_reward * risk
+                target_price = nearest_confirmed_liquidity_target(
+                    x, entry_idx, side,
+                    lookback=target_lookback,
+                    pivot_left=target_pivot_left,
+                    pivot_right=target_pivot_right,
                 )
+                if target_price is None:
+                    continue
+                reward = target_price - entry_price if side == 1 else entry_price - target_price
+                if reward <= 0 or reward / risk < risk_reward:
+                    continue
                 setups.append({
                     "side": side,
                     "sweep_index": sweep_idx,
