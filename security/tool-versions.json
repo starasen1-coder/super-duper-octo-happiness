@@ -6,13 +6,22 @@
     "sha256": "51443d733bcb26064262442083a8f8abf6ba5e3e7df54beebafe98c88be04a60",
     "wheel_asset": "agent_reach-1.6.1-py3-none-any.whl",
     "wheel_url": "https://github.com/Panniantong/Agent-Reach/releases/download/v1.6.1/agent_reach-1.6.1-py3-none-any.whl",
-    "wheel_sha256": "6a1085cae53118c5f1271ab24041e55ec17c509932612b919208f04d10183acb"
+    "wheel_sha256": "6a1085cae53118c5f1271ab24041e55ec17c509932612b919208f04d10183acb",
+    "git_commit": "7a38047acf26a729cbb27851e3cb81639da86b29",
+    "skill_subdirectory": "agent_reach/skill",
+    "security_review": {
+      "scanner": "NVIDIA SkillSpector",
+      "scanner_version": "2.13.7",
+      "status": "pending",
+      "decision": "not yet reviewed",
+      "reason": "Pinned release candidate is scanned in CI; do not install until report and human review are complete."
+    }
   },
   "skillspector": {
-    "version": "2.13.6",
-    "asset": "skillspector-2.13.6-py3-none-any.whl",
-    "url": "https://github.com/NVIDIA/SkillSpector/releases/download/v2.13.6/skillspector-2.13.6-py3-none-any.whl",
-    "sha256": "e7b46c55e726405b2a068d375d1ee8e799e15d86f3fc05f84feb5ba962198b15",
+    "version": "2.13.7",
+    "asset": "skillspector-2.13.7-py3-none-any.whl",
+    "url": "https://github.com/NVIDIA/SkillSpector/releases/download/v2.13.7/skillspector-2.13.7-py3-none-any.whl",
+    "sha256": "e2356aa11f0d484f789543f25da6208fe2408641c8b16e7b59bc6600c5c39ffb",
     "license": "Apache-2.0"
   },
   "lemo_opuscar": {
