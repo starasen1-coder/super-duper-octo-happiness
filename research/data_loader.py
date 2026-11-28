@@ -47,6 +47,53 @@ def normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
         out["volume"] = 0.0
     return out[["time", "open", "high", "low", "close", "volume"]]
 
+
+def merge_bid_ask_ohlcv(
+    bid: pd.DataFrame,
+    ask: pd.DataFrame,
+) -> pd.DataFrame:
+    """Build mid OHLC and price-unit spread from synchronized Bid/Ask bars.
+
+    Exact timestamp matching is required: unmatched bars are rejected rather
+    than silently dropped or forward-filled. Spread is measured at bar open,
+    matching the execution model's entry quote convention.
+    """
+    b = normalize_ohlcv(bid).rename(columns={
+        "open": "bid_open", "high": "bid_high", "low": "bid_low",
+        "close": "bid_close", "volume": "bid_volume",
+    })
+    a = normalize_ohlcv(ask).rename(columns={
+        "open": "ask_open", "high": "ask_high", "low": "ask_low",
+        "close": "ask_close", "volume": "ask_volume",
+    })
+    joined = b.merge(a, on="time", how="outer", validate="one_to_one", indicator=True)
+    if not joined["_merge"].eq("both").all():
+        missing_bid = int(joined["_merge"].eq("right_only").sum())
+        missing_ask = int(joined["_merge"].eq("left_only").sum())
+        raise ValueError(
+            f"Bid/Ask timestamps do not match exactly: {missing_bid} Ask-only, "
+            f"{missing_ask} Bid-only bars"
+        )
+    joined = joined.drop(columns="_merge")
+    if (joined["ask_open"] < joined["bid_open"]).any() or (
+        joined["ask_close"] < joined["bid_close"]
+    ).any():
+        raise ValueError("negative Bid/Ask spread at bar open or close")
+    out = pd.DataFrame({
+        "time": joined["time"],
+        "open": (joined["bid_open"] + joined["ask_open"]) / 2.0,
+        "high": (joined["bid_high"] + joined["ask_high"]) / 2.0,
+        "low": (joined["bid_low"] + joined["ask_low"]) / 2.0,
+        "close": (joined["bid_close"] + joined["ask_close"]) / 2.0,
+        "volume": joined["bid_volume"],
+        "spread": joined["ask_open"] - joined["bid_open"],
+        "spread_close": joined["ask_close"] - joined["bid_close"],
+    })
+    if (out["spread"] < 0).any() or (out["spread_close"] < 0).any():
+        raise ValueError("negative spread encountered")
+    return out.reset_index(drop=True)
+
+
 def normalize_spread(df: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(df, pd.DataFrame) or df.empty:
         raise ValueError("spread data must be a non-empty DataFrame")
