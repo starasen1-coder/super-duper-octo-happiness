@@ -101,6 +101,43 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+
+  scan-agent-reach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download and verify pinned SkillSpector wheel
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/NVIDIA/SkillSpector/releases/download/v2.13.7/skillspector-2.13.7-py3-none-any.whl \
+            --output /tmp/skillspector-2.13.7-py3-none-any.whl
+          echo "e2356aa11f0d484f789543f25da6208fe2408641c8b16e7b59bc6600c5c39ffb  /tmp/skillspector-2.13.7-py3-none-any.whl" | sha256sum --check -
+      - name: Install pinned SkillSpector
+        run: python -m pip install /tmp/skillspector-2.13.7-py3-none-any.whl
+      - name: Scan pinned Agent Reach skill at immutable release commit
+        env:
+          PYTHONPATH: .
+        run: |
+          python security/skillspector/scan_remote.py \
+            --repository Panniantong/Agent-Reach \
+            --revision 7a38047acf26a729cbb27851e3cb81639da86b29 \
+            --subdirectory agent_reach/skill \
+            --output-dir /tmp/skillspector-agent-reach-report
+      - name: Preserve Agent Reach candidate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skillspector-agent-reach-report
+          path: /tmp/skillspector-agent-reach-report/
+          if-no-files-found: warn
+          retention-days: 30
+
   scan-candidate:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
