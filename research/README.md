@@ -45,3 +45,7 @@
 - если подтверждённой цели нет или gross RR меньше минимального порога 2R, сетап пропускается.
 
 RR на этапе построения сетапа считается до издержек. Финальное решение о качестве требует spread-aware backtest, комиссии, проскальзывания и out-of-sample проверки. Фиксированный 2R больше не подменяет собой структурную цель.
+
+## Bid/Ask normalization
+
+`merge_bid_ask_ohlcv()` requires exact timestamp alignment between Bid and Ask M5 candles. It rejects missing bars, builds mid OHLC, and preserves the bar-open spread in USD price units. It does not forward-fill stale quotes or interpolate absent candles.
