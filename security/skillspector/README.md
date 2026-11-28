@@ -1,6 +1,6 @@
 # SkillSpector pre-install gate
 
-This gate uses NVIDIA SkillSpector **v2.13.6** (Apache-2.0), pinned by release asset URL and SHA-256 in `security/tool-versions.json`.
+This gate uses NVIDIA SkillSpector **v2.13.7** (Apache-2.0), pinned by release asset URL and SHA-256 in `security/tool-versions.json`.
 
 The scanner is installed and run only in an isolated CI job. It receives no production secrets, write token, Docker socket, broker data, browser sessions, or production filesystem mounts. It scans a local, revision-pinned checkout with static analysis (`--no-llm`) and fails closed on incomplete inspection.
 
