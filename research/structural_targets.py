@@ -4,7 +4,7 @@ Only pivots fully confirmed before the entry bar are eligible. No future bars ar
 from __future__ import annotations
 import pandas as pd
 
-def nearest_confirmed_liquidity_target(bars: pd.DataFrame, entry_index: int, side: int, lookback: int = 288, pivot_left: int = 2, pivot_right: int = 2) -> float | None:
+def nearest_confirmed_liquidity_target(bars: pd.DataFrame, entry_index: int, side: int, lookback: int = 288, pivot_left: int = 2, pivot_right: int = 2, after_index: int = -1) -> float | None:
     """Return nearest confirmed opposing swing level beyond the entry price.
 
     entry_index is the bar whose OPEN is the simulated entry. Only bars
@@ -20,7 +20,7 @@ def nearest_confirmed_liquidity_target(bars: pd.DataFrame, entry_index: int, sid
     if entry_index < 0 or entry_index >= len(bars):
         raise IndexError("entry_index out of range")
     entry = float(bars.iloc[entry_index]["open"])
-    start = max(pivot_left, entry_index - lookback)
+    start = max(pivot_left, entry_index - lookback, after_index + 1)
     end = entry_index - pivot_right - 1
     if end < start:
         return None
